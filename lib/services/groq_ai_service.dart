@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class GroqAIService {
   static const String _apiKey =
-      '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';
+      String.fromEnvironment('GROQ_API_KEY', defaultValue: '');
   static const String _baseUrl = 'https://api.groq.com/openai/v1';
 
   // Analyze food and get nutrition information
