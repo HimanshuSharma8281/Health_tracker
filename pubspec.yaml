@@ -16,6 +16,7 @@ dependencies:
   fl_chart: ^0.68.0
   flutter:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.4
   google_fonts: ^6.1.0
   google_generative_ai: ^0.4.0
   google_sign_in: ^6.1.6
@@ -33,5 +34,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/him.png"
 flutter:
   uses-material-design: true

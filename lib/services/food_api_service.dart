@@ -1,19 +1,26 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../config/api_keys.dart';
 
 class FoodApiService {
-  static const String _groqApiKey =
-      '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';
+  // Groq API configuration - set your key here or leave empty to use fallback only
+  static const String _apiKey = ApiKeys.foodApiKey;
   static const String _groqApiUrl =
       'https://api.groq.com/openai/v1/chat/completions';
 
   // Search for food by name using Groq AI
   static Future<List<Map<String, dynamic>>> searchFood(String query) async {
-    print('🔍 Searching for: $query using Groq AI');
+    print('🔍 Searching for: $query');
 
     if (query.trim().isEmpty) {
       return [];
+    }
+
+    // If no API key, use fallback immediately
+    if (_apiKey.isEmpty) {
+      print('⚠️ No API key configured, using fallback nutrition data');
+      return [_getFallbackNutrition(query)];
     }
 
     try {
@@ -51,7 +58,7 @@ Give realistic values based on USDA nutritional database.''';
           .post(
             Uri.parse(_groqApiUrl),
             headers: {
-              'Authorization': 'Bearer $_groqApiKey',
+              'Authorization': 'Bearer $_apiKey',
               'Content-Type': 'application/json',
             },
             body: jsonEncode(requestBody),
