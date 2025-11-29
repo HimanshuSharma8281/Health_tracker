@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSMotionUsageDescription</key>
+	<string>Aurora Wellness needs access to motion sensors to track your steps automatically.</string>
 </dict>
 </plist>

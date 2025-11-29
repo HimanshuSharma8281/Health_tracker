@@ -238,6 +238,10 @@ class ActivitySummary extends StatelessWidget {
 }
 
 class SectionCard extends StatelessWidget {
+  final String title;
+  final Widget child;
+  final Widget? trailing;
+
   const SectionCard({
     super.key,
     required this.title,
@@ -245,31 +249,46 @@ class SectionCard extends StatelessWidget {
     this.trailing,
   });
 
-  final String title;
-  final Widget child;
-  final Widget? trailing;
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: const [
-            BoxShadow(
-                color: Color(0x11000000), blurRadius: 20, offset: Offset(0, 12))
-          ]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(title,
-              style:
-                  GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700)),
-          if (trailing != null) trailing!,
-        ]),
-        const SizedBox(height: 16),
-        child,
-      ]),
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withOpacity(0.3)
+                : Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              if (trailing != null) trailing!,
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
     );
   }
 }

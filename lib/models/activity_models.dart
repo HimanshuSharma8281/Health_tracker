@@ -21,16 +21,73 @@ class ActivityEntry {
 }
 
 class MealEntry {
-  MealEntry({required this.name, required this.calories, required this.time});
+  MealEntry({
+    required this.name,
+    required this.calories,
+    required this.time,
+    this.mealType = MealType.snack, // default to snack
+  });
 
   final String name;
   final int calories;
   final DateTime time;
+  final MealType mealType;
 }
 
-enum ReminderType { meal, workout, hydration, sleep }
+enum MealType {
+  breakfast,
+  lunch,
+  dinner,
+  snack;
 
-extension ReminderTypeLabel on ReminderType {
+  String get displayName {
+    switch (this) {
+      case MealType.breakfast:
+        return 'Breakfast';
+      case MealType.lunch:
+        return 'Lunch';
+      case MealType.dinner:
+        return 'Dinner';
+      case MealType.snack:
+        return 'Snack';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case MealType.breakfast:
+        return Icons.wb_sunny;
+      case MealType.lunch:
+        return Icons.lunch_dining;
+      case MealType.dinner:
+        return Icons.dinner_dining;
+      case MealType.snack:
+        return Icons.cookie;
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case MealType.breakfast:
+        return const Color(0xFFFFB300);
+      case MealType.lunch:
+        return const Color(0xFF00C853);
+      case MealType.dinner:
+        return const Color(0xFFD500F9);
+      case MealType.snack:
+        return const Color(0xFFFF6D00);
+    }
+  }
+}
+
+enum ReminderType {
+  meal,
+  workout,
+  hydration,
+  sleep,
+}
+
+extension ReminderTypeExtension on ReminderType {
   String get label {
     switch (this) {
       case ReminderType.meal:
@@ -46,17 +103,17 @@ extension ReminderTypeLabel on ReminderType {
 }
 
 class ReminderItem {
+  final String title;
+  final TimeOfDay time;
+  final ReminderType type;
+  bool enabled;
+
   ReminderItem({
     required this.title,
     required this.time,
     required this.type,
     this.enabled = true,
   });
-
-  final String title;
-  final TimeOfDay time;
-  final ReminderType type;
-  bool enabled;
 }
 
 class MindfulnessSession {

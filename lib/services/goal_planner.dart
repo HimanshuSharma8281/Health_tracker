@@ -16,7 +16,7 @@ class GoalPlanner {
     return GoalPlan(
       stepGoal: (data.stepsToday + stepAdjustment).clamp(8500, 15000),
       waterGoal: data.waterGoal + waterAdjustment,
-      calorieGoal: calorieTarget,
+      calorieGoal: calorieTarget.round(),
       sleepGoal: double.parse(sleepTarget.toStringAsFixed(1)),
       mindfulnessGoal: mindfulnessTarget,
     );
