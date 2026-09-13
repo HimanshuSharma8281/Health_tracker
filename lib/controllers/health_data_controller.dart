@@ -41,6 +41,7 @@ class HealthDataController extends ChangeNotifier {
 
   final List<ActivityEntry> history = [];
   final List<MealEntry> meals = [];
+  final List<MealEntry> mealHistory = [];
   final List<ReminderItem> reminders = [];
   final List<Challenge> challenges = [];
   final List<LeaderboardEntry> leaderboard = [];
@@ -198,6 +199,7 @@ class HealthDataController extends ChangeNotifier {
     sleepReadingHistory.clear();
     waterIntakeHistory.clear();
     meals.clear();
+    mealHistory.clear();
     bloodPressureHistory.clear();
     bloodSugarHistory.clear();
     heartRateHistory.clear();
@@ -341,7 +343,9 @@ class HealthDataController extends ChangeNotifier {
         // 3b. Calories & Meals: individual meal entries and today's total
         final calReadings = readings.where((r) => r.metric == HealthReading.calories).toList();
         meals.clear();
+        mealHistory.clear();
         if (calReadings.isNotEmpty) {
+          final now = DateTime.now();
           for (final r in calReadings.reversed) {
             final mealTypeStr = r.metadata['mealType'] as String?;
             final mealName = r.metadata['mealName'] as String? ?? 'Meal';
@@ -349,17 +353,23 @@ class HealthDataController extends ChangeNotifier {
               (m) => m.name == mealTypeStr,
               orElse: () => MealType.snack,
             );
-            meals.add(MealEntry(
+            final meal = MealEntry(
               id: r.id,
               name: mealName,
               calories: r.value.round(),
               time: r.timestamp,
               mealType: mealType,
-            ));
+            );
+
+            // Retain full historical meals
+            mealHistory.add(meal);
+
+            // Filter ONLY today's meals for today's section and calorie total
+            if (HealthReading.isReadingOnDate(r, now)) {
+              meals.add(meal);
+            }
           }
-          final todayCal = calReadings
-              .where((r) => r.date == todayStr)
-              .fold<double>(0.0, (sum, r) => sum + r.value);
+          final todayCal = meals.fold<double>(0.0, (sum, m) => sum + m.calories);
           caloriesConsumed = todayCal;
         } else {
           caloriesConsumed = 0.0;
@@ -736,6 +746,29 @@ class HealthDataController extends ChangeNotifier {
         .fold(0, (sum, r) => sum + r.amount);
   }
 
+  List<MealEntry> getMealsForDay(DateTime day) {
+    return mealHistory
+        .where((m) => HealthReading.isSameDay(m.time, day))
+        .toList();
+  }
+
+  int getCaloriesForDay(DateTime day) {
+    final now = DateTime.now();
+    if (HealthReading.isSameDay(day, now)) {
+      return caloriesConsumed.round();
+    }
+
+    final dayStart = DateTime(day.year, day.month, day.day);
+    for (var record in history) {
+      final recordDate =
+          DateTime(record.date.year, record.date.month, record.date.day);
+      if (recordDate.isAtSameMomentAs(dayStart)) {
+        return record.calories;
+      }
+    }
+    return 0;
+  }
+
   // GETTERS
   List<FlSpot> get stepTrend => List.generate(history.length,
       (index) => FlSpot(index.toDouble(), history[index].steps.toDouble()));
@@ -817,6 +850,7 @@ class HealthDataController extends ChangeNotifier {
     sleepHistory.clear();
     waterHistory.clear();
     meals.clear();
+    mealHistory.clear();
     history.clear();
     _isDataLoaded = false;
     _isLoadingData = false;
@@ -959,12 +993,16 @@ class HealthDataController extends ChangeNotifier {
           )
         : meal;
 
-    meals.insert(0, effectiveMeal);
+    final mealDateStr = HealthReading.formatDate(effectiveMeal.time);
+    final now = DateTime.now();
+    final isMealToday = HealthReading.isSameDay(effectiveMeal.time, now);
 
-    final today = HealthReading.todayDate();
-    caloriesConsumed = meals
-        .where((m) => HealthReading.formatDate(m.time) == today)
-        .fold(0.0, (sum, m) => sum + m.calories);
+    mealHistory.insert(0, effectiveMeal);
+    if (isMealToday) {
+      meals.insert(0, effectiveMeal);
+    }
+
+    caloriesConsumed = meals.fold(0.0, (sum, m) => sum + m.calories);
 
     rewardPoints += 8;
 
@@ -973,10 +1011,10 @@ class HealthDataController extends ChangeNotifier {
       id: docId,
       userId: userId!,
       metric: HealthReading.calories,
-      value: meal.calories.toDouble(),
-      date: today,
-      timestamp: meal.time,
-      metadata: {'mealType': meal.mealType.name, 'mealName': meal.name},
+      value: effectiveMeal.calories.toDouble(),
+      date: mealDateStr,
+      timestamp: effectiveMeal.time,
+      metadata: {'mealType': effectiveMeal.mealType.name, 'mealName': effectiveMeal.name},
     ));
 
     _updateTodayInHistory();
@@ -991,11 +1029,9 @@ class HealthDataController extends ChangeNotifier {
     if (userId == null) return;
 
     meals.remove(meal);
+    mealHistory.remove(meal);
 
-    final today = HealthReading.todayDate();
-    caloriesConsumed = meals
-        .where((m) => HealthReading.formatDate(m.time) == today)
-        .fold(0.0, (sum, m) => sum + m.calories);
+    caloriesConsumed = meals.fold(0.0, (sum, m) => sum + m.calories);
 
     if (meal.id.isNotEmpty) {
       FirestoreService.instance.deleteReading(userId!, meal.id).catchError((e) {

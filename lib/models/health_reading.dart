@@ -103,4 +103,22 @@ class HealthReading {
   static String formatDate(DateTime dt) {
     return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
   }
+
+  /// Checks if two DateTime instances fall on the exact same local calendar day.
+  static bool isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  /// Determines whether a HealthReading belongs to the given local calendar day.
+  static bool isReadingOnDate(HealthReading r, DateTime day) {
+    final dayStr = formatDate(day);
+    if (r.date.isNotEmpty && r.date == dayStr) {
+      return true;
+    }
+    final startOfDay = DateTime(day.year, day.month, day.day);
+    final startOfNextDay = DateTime(day.year, day.month, day.day + 1);
+    return (r.timestamp.isAtSameMomentAs(startOfDay) || r.timestamp.isAfter(startOfDay)) &&
+        r.timestamp.isBefore(startOfNextDay);
+  }
 }
+

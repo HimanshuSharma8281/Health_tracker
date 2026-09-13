@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../config/api_keys.dart';
@@ -95,12 +96,13 @@ Format: Return only 3 bullet points, one per line, starting with •''';
       request.headers['Authorization'] = 'Bearer $idToken';
 
       request.files.add(
-        http.MultipartFile.fromBytes(
-          'image',
-          imageBytes,
-          filename: 'food_image.jpg',
-        ),
-      );
+  http.MultipartFile.fromBytes(
+    'image',
+    imageBytes,
+    filename: 'food_image.jpg',
+    contentType: MediaType('image', 'jpeg'),
+  ),
+);
 
       print('🔄 Sending request to Aurora Food Vision backend...');
 

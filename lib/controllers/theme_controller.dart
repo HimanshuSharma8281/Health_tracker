@@ -62,16 +62,16 @@ class ThemeController extends ChangeNotifier {
         useMaterial3: true,
         brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF3A86FF),
+          seedColor: const Color(0xFF48E5C2),
           brightness: Brightness.dark,
         ),
-        scaffoldBackgroundColor: const Color(0xFF121212),
+        scaffoldBackgroundColor: const Color(0xFF090D10),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
           elevation: 0,
           foregroundColor: Colors.white,
         ),
-        cardColor: const Color(0xFF1E1E1E),
-        dividerColor: Colors.grey.shade800,
+        cardColor: const Color(0xFF141A22),
+        dividerColor: Colors.white.withValues(alpha: 0.1),
       );
 }

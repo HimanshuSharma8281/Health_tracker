@@ -416,95 +416,202 @@ class _CalorieDetailScreenState extends State<CalorieDetailScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: const Color(0xFF141A22),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(
+              color: Colors.white.withValues(alpha: 0.12),
+              width: 1.2,
+            ),
+          ),
+          titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
           title: Row(
             children: [
-              Icon(
-                isFoodDetected ? Icons.check_circle : Icons.help_outline,
-                color: isFoodDetected
-                    ? const Color(0xFF2E7D32)
-                    : const Color(0xFFFF9800),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (isFoodDetected
+                          ? const Color(0xFF48E5C2)
+                          : const Color(0xFFFFBE0B))
+                      .withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isFoodDetected
+                      ? Icons.check_circle_rounded
+                      : Icons.help_outline_rounded,
+                  color: isFoodDetected
+                      ? const Color(0xFF48E5C2)
+                      : const Color(0xFFFFBE0B),
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
-              Text(
-                isFoodDetected ? 'Food Detected!' : 'Food Detection',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+              Expanded(
+                child: Text(
+                  isFoodDetected ? 'Food Detected!' : 'Food Detection',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ],
           ),
           content: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (!isFoodDetected)
                   Container(
+                    margin: const EdgeInsets.only(bottom: 14),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFF3E0),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFFF9800)),
+                      color: const Color(0xFFFFBE0B).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: const Color(0xFFFFBE0B).withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.info_outline,
-                            color: Color(0xFFFF9800), size: 20),
-                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          color: Color(0xFFFFBE0B),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Unable to detect food clearly. You can still add estimated values or try another image.',
                             style: GoogleFonts.inter(
                               fontSize: 12,
-                              color: Colors.black87,
+                              color: Colors.white.withValues(alpha: 0.85),
+                              height: 1.35,
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                if (!isFoodDetected) const SizedBox(height: 16),
 
-                Text(result['name'],
-                    style: GoogleFonts.inter(
-                        fontSize: 18, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 16),
+                // Food Name Hero
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.restaurant_rounded,
+                        color: Color(0xFFFF8E53),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          result['name'],
+                          style: GoogleFonts.inter(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
 
                 // Meal Type Selector
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5F7FA),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Meal Type',
-                          style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87)),
-                      const SizedBox(height: 8),
+                      Text(
+                        'MEAL TYPE',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.1,
+                          color: Colors.white54,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
+                        runSpacing: 8,
                         children: MealType.values.map((type) {
                           final isSelected = selectedType == type;
-                          return ChoiceChip(
-                            label: Text(type.displayName),
-                            avatar: Icon(type.icon,
-                                size: 16,
-                                color: isSelected ? Colors.white : type.color),
-                            selected: isSelected,
-                            onSelected: (selected) {
+                          return InkWell(
+                            onTap: () {
                               setState(() => selectedType = type);
                             },
-                            selectedColor: type.color,
-                            backgroundColor: type.color.withOpacity(0.1),
-                            labelStyle: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isSelected ? Colors.white : Colors.black87,
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? type.color.withValues(alpha: 0.22)
+                                    : Colors.white.withValues(alpha: 0.04),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? type.color
+                                      : Colors.white.withValues(alpha: 0.08),
+                                  width: isSelected ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    type.icon,
+                                    size: 15,
+                                    color: isSelected
+                                        ? type.color
+                                        : type.color.withValues(alpha: 0.7),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    type.displayName,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         }).toList(),
@@ -516,121 +623,240 @@ class _CalorieDetailScreenState extends State<CalorieDetailScreen> {
 
                 // Quantity Selector
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5F7FA),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Quantity',
-                          style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87)),
+                      Text(
+                        'QUANTITY',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.1,
+                          color: Colors.white54,
+                        ),
+                      ),
                       Row(
                         children: [
                           IconButton(
                             onPressed: quantity > 1
                                 ? () => setState(() => quantity--)
                                 : null,
-                            icon: const Icon(Icons.remove_circle_outline),
-                            color: const Color(0xFF3A86FF),
-                            iconSize: 28,
+                            icon: const Icon(Icons.remove_circle_outline_rounded),
+                            color: quantity > 1
+                                ? const Color(0xFFFF5C7A)
+                                : Colors.white24,
+                            iconSize: 26,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
                           ),
+                          const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
+                              horizontal: 14,
+                              vertical: 6,
                             ),
-                            child: Text('$quantity',
-                                style: GoogleFonts.inter(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF3A86FF))),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.12),
+                              ),
+                            ),
+                            child: Text(
+                              '$quantity',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
+                          const SizedBox(width: 6),
                           IconButton(
                             onPressed: quantity < 10
                                 ? () => setState(() => quantity++)
                                 : null,
-                            icon: const Icon(Icons.add_circle_outline),
-                            color: const Color(0xFF3A86FF),
-                            iconSize: 28,
+                            icon: const Icon(Icons.add_circle_outline_rounded),
+                            color: quantity < 10
+                                ? const Color(0xFFFF8E53)
+                                : Colors.white24,
+                            iconSize: 26,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
                           ),
                         ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
-                _buildNutrientRow(
-                    'Calories',
-                    '${result['calories'] * quantity} kcal',
-                    Icons.local_fire_department),
-                _buildNutrientRow(
-                    'Protein',
-                    '${(double.parse(result['protein'].toString()) * quantity).toStringAsFixed(1)}g',
-                    Icons.fitness_center),
-                _buildNutrientRow(
-                    'Carbs',
-                    '${(double.parse(result['carbs'].toString()) * quantity).toStringAsFixed(1)}g',
-                    Icons.grain),
-                _buildNutrientRow(
-                    'Fat',
-                    '${(double.parse(result['fat'].toString()) * quantity).toStringAsFixed(1)}g',
-                    Icons.water_drop),
-                const SizedBox(height: 12),
+                // Macro breakdown
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.06),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildNutrientRow(
+                        'Calories',
+                        '${result['calories'] * quantity} kcal',
+                        Icons.local_fire_department_rounded,
+                        const Color(0xFFFF8E53),
+                      ),
+                      _buildNutrientRow(
+                        'Protein',
+                        '${(double.parse(result['protein'].toString()) * quantity).toStringAsFixed(1)}g',
+                        Icons.fitness_center_rounded,
+                        const Color(0xFF3A86FF),
+                      ),
+                      _buildNutrientRow(
+                        'Carbs',
+                        '${(double.parse(result['carbs'].toString()) * quantity).toStringAsFixed(1)}g',
+                        Icons.grain_rounded,
+                        const Color(0xFF48E5C2),
+                      ),
+                      _buildNutrientRow(
+                        'Fat',
+                        '${(double.parse(result['fat'].toString()) * quantity).toStringAsFixed(1)}g',
+                        Icons.water_drop_rounded,
+                        const Color(0xFFFFBE0B),
+                      ),
+                    ],
+                  ),
+                ),
+
                 if (result['confidence'] != null &&
-                    result['confidence'] != '0.0')
+                    result['confidence'] != '0.0') ...[
+                  const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF0F4FF),
+                      color: const Color(0xFF3A86FF).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF3A86FF).withValues(alpha: 0.25),
+                      ),
                     ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.psychology,
-                            color: Color(0xFF3A86FF), size: 20),
+                        const Icon(
+                          Icons.psychology_rounded,
+                          color: Color(0xFF3A86FF),
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
-                        Text('Confidence: ${result['confidence']}%',
-                            style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: Colors.black87,
-                                fontWeight: FontWeight.w600)),
+                        Text(
+                          'Confidence: ${result['confidence']}%',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF90CAFF),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
                   ),
+                ],
               ],
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: GoogleFonts.inter()),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  color: Colors.white54,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-            FilledButton(
-              onPressed: () {
-                data.logMeal(MealEntry(
-                  name: '${result['name']} x$quantity',
-                  calories: result['calories'] * quantity,
-                  time: DateTime.now(),
-                  mealType: selectedType,
-                ));
-                Navigator.pop(context);
-                CustomNotification.show(
-                  context,
-                  message:
-                      '${result['name']} x$quantity added to ${selectedType.displayName}!',
-                  type: NotificationType.success,
-                  title: 'Meal Added',
-                );
-              },
-              child: Text('Add to Log', style: GoogleFonts.inter()),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    selectedType.color,
+                    selectedType.color.withValues(alpha: 0.8),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: selectedType.color.withOpacity(0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ElevatedButton(
+                onPressed: () {
+                  data.logMeal(MealEntry(
+                    name: '${result['name']} x$quantity',
+                    calories: result['calories'] * quantity,
+                    time: DateTime.now(),
+                    mealType: selectedType,
+                  ));
+                  Navigator.pop(context);
+                  CustomNotification.show(
+                    context,
+                    message:
+                        '${result['name']} x$quantity added to ${selectedType.displayName}!',
+                    type: NotificationType.success,
+                    title: 'Meal Added',
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.add_circle_outline_rounded, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Add to Log',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -638,16 +864,38 @@ class _CalorieDetailScreenState extends State<CalorieDetailScreen> {
     );
   }
 
-  Widget _buildNutrientRow(String label, String value, IconData icon) {
+  Widget _buildNutrientRow(
+      String label, String value, IconData icon, Color iconColor) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: const Color(0xFF3A86FF)),
-          const SizedBox(width: 12),
-          Text(label, style: GoogleFonts.inter(color: Colors.black54)),
+          Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 15, color: iconColor),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           const Spacer(),
-          Text(value, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              fontSize: 14,
+            ),
+          ),
         ],
       ),
     );
