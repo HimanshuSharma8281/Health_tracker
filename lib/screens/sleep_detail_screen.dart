@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../controllers/health_data_controller.dart';
 import '../widgets/notification_widget.dart';
+import '../widgets/glass_container.dart';
 
 class SleepDetailScreen extends StatefulWidget {
   const SleepDetailScreen({super.key});
@@ -16,272 +17,210 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
   String selectedFilter = 'Weekly';
 
   void _showAddSleepDialog(HealthDataController data) {
-    double hours = 7.0;
-    showDialog(
+    double hours = data.sleepHours > 0 ? data.sleepHours : 7.5;
+
+    showModalBottomSheet(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFFBE0B).withOpacity(0.2),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
-                ),
-              ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header with gradient
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFBE0B), Color(0xFFFB8500)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(24),
+            child: GlassContainer(
+              blur: 24,
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+              color: const Color(0xE6141A20),
+              border: const Border(
+                top: BorderSide(color: Color(0x409B86EC), width: 1.5),
+              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle bar
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                  child: Row(
+                  const SizedBox(height: 18),
+
+                  Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: const Color(0x259B86EC),
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0x409B86EC)),
                         ),
-                        child: const Icon(
-                          Icons.nightlight_round,
-                          color: Colors.white,
-                          size: 28,
-                        ),
+                        child: const Icon(Icons.nightlight_round, color: Color(0xFF9B86EC), size: 22),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Log Sleep',
-                              style: GoogleFonts.inter(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'How long did you sleep?',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white.withOpacity(0.85),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Content
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Sleep hours display
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF8E1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: const Color(0xFFFFBE0B).withOpacity(0.3),
-                            width: 2,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              '${hours.toStringAsFixed(1)} hours',
-                              style: GoogleFonts.inter(
-                                fontSize: 36,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFFFFBE0B),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'of sleep',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Slider
-                      SliderTheme(
-                        data: SliderThemeData(
-                          activeTrackColor: const Color(0xFFFFBE0B),
-                          inactiveTrackColor:
-                              const Color(0xFFFFBE0B).withOpacity(0.2),
-                          thumbColor: const Color(0xFFFFBE0B),
-                          overlayColor:
-                              const Color(0xFFFFBE0B).withOpacity(0.2),
-                          thumbShape: const RoundSliderThumbShape(
-                            enabledThumbRadius: 12,
-                          ),
-                          trackHeight: 8,
-                        ),
-                        child: Slider(
-                          value: hours,
-                          min: 0.5,
-                          max: 12.0,
-                          divisions: 23,
-                          onChanged: (value) {
-                            setState(() => hours = value);
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Min/Max labels
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '0.5h',
+                            'Log Sleep Duration',
                             style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: Colors.black45,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
                             ),
                           ),
                           Text(
-                            '12h',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: Colors.black45,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Action buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              style: TextButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                'Cancel',
-                                style: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFFFFBE0B),
-                                    Color(0xFFFB8500)
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFFFFBE0B)
-                                        .withOpacity(0.3),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: () {
-                                    // Add sleep reading to controller
-                                    data.addSleepReading(hours);
-
-                                    Navigator.pop(context);
-                                    CustomNotification.show(
-                                      context,
-                                      message:
-                                          'Logged ${hours.toStringAsFixed(1)} hours of sleep',
-                                      type: NotificationType.success,
-                                      title: 'Sleep Added',
-                                    );
-                                  },
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 16),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(
-                                          Icons.add_circle_outline,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Log Sleep',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
+                            'How long did you rest today?',
+                            style: GoogleFonts.inter(fontSize: 12, color: Colors.white54),
                           ),
                         ],
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 24),
+
+                  // Duration Display
+                  Center(
+                    child: RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: hours.toStringAsFixed(1),
+                            style: GoogleFonts.inter(
+                              fontSize: 48,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -1,
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' hrs',
+                            style: GoogleFonts.inter(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF9B86EC),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Slider
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: const Color(0xFF9B86EC),
+                      inactiveTrackColor: Colors.white.withValues(alpha: 0.08),
+                      thumbColor: Colors.white,
+                      overlayColor: const Color(0x339B86EC),
+                      trackHeight: 6,
+                    ),
+                    child: Slider(
+                      value: hours.clamp(0.0, 14.0),
+                      min: 0.0,
+                      max: 14.0,
+                      divisions: 28,
+                      onChanged: (val) {
+                        setModalState(() => hours = val);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Quick presets
+                  Text(
+                    'Quick Presets',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white54,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [6.0, 7.0, 7.5, 8.0, 8.5, 9.0].map((preset) {
+                      final isSelected = (hours - preset).abs() < 0.1;
+                      return InkWell(
+                        onTap: () => setModalState(() => hours = preset),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF9B86EC).withValues(alpha: 0.25)
+                                : Colors.white.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isSelected ? const Color(0xFF9B86EC) : Colors.white.withValues(alpha: 0.1),
+                            ),
+                          ),
+                          child: Text(
+                            '${preset.toStringAsFixed(1)}h',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isSelected ? const Color(0xFF9B86EC) : Colors.white70,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Save Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF9B86EC), Color(0xFF8338EC)],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          data.addSleepReading(hours);
+                          Navigator.pop(context);
+                          CustomNotification.show(
+                            context,
+                            message: 'Sleep recorded: ${hours.toStringAsFixed(1)} hours',
+                            type: NotificationType.success,
+                            title: 'Sleep Saved',
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: Text(
+                          'Save Sleep Record',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -289,7 +228,6 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
   void _removeSleepEntry(SleepReading entry) {
     final data = Provider.of<HealthDataController>(context, listen: false);
     data.removeSleepReading(entry);
-
     CustomNotification.show(
       context,
       message: 'Removed ${entry.hours.toStringAsFixed(1)}h sleep entry',
@@ -307,660 +245,569 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8E1),
-      appBar: AppBar(
-        title: Text('Sleep Tracker',
-            style:
-                GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: Consumer<HealthDataController>(
-        builder: (context, data, _) {
-          final progress = (data.sleepHours / data.sleepGoal).clamp(0.0, 1.0);
-          final remaining = data.sleepGoal - data.sleepHours;
+      backgroundColor: const Color(0xFF090D10),
+      body: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF090D10),
+          gradient: RadialGradient(
+            center: Alignment(-0.7, -0.6),
+            radius: 1.2,
+            colors: [
+              Color(0xFF16102A), // Subtle midnight lavender atmosphere
+              Color(0xFF090D10),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Consumer<HealthDataController>(
+            builder: (context, data, _) {
+              final progress = data.sleepGoal > 0 ? (data.sleepHours / data.sleepGoal).clamp(0.0, 1.0) : 0.0;
+              final diff = data.sleepHours - data.sleepGoal;
+              final percentage = (progress * 100).round();
 
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              // Hero Card
-              Container(
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFFBE0B), Color(0xFFFB8500)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFFBE0B).withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    // Sleep icon
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.nightlight_round,
-                        size: 50,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Current sleep hours
-                    Text(
-                      '${data.sleepHours.toStringAsFixed(1)} h',
-                      style: GoogleFonts.inter(
-                        fontSize: 42,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        height: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'of ${data.sleepGoal.toStringAsFixed(1)}h goal',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Progress bar
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 12,
-                        backgroundColor: Colors.white.withOpacity(0.3),
-                        valueColor: const AlwaysStoppedAnimation(Colors.white),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Status text
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          remaining <= 0 ? Icons.check_circle : Icons.bedtime,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          remaining <= 0
-                              ? 'Sleep goal achieved! 😴'
-                              : '${remaining.toStringAsFixed(1)}h more to goal',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Log Sleep Button
-              Container(
-                width: double.infinity,
-                height: 70,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFFBE0B), Color(0xFFFB8500)],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFFBE0B).withOpacity(0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => _showAddSleepDialog(data),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
+              return ListView(
+                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+                children: [
+                  // 1. Navigation Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                           ),
-                          child: const Icon(Icons.add,
-                              color: Colors.white, size: 24),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Log Sleep',
-                          style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                          child: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            size: 16,
                             color: Colors.white,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Sleep History
-              if (data.sleepReadingHistory.isNotEmpty) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.history,
-                            color: const Color(0xFFFFBE0B), size: 22),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Sleep History',
-                          style: GoogleFonts.inter(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFBE0B).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
-                        '${data.sleepReadingHistory.length} entries',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFFFFBE0B),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                ...data.sleepReadingHistory.reversed.map((entry) => Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        leading: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFFBE0B), Color(0xFFFB8500)],
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.nightlight_round,
-                              color: Colors.white, size: 22),
-                        ),
-                        title: Text(
-                          '${entry.hours.toStringAsFixed(1)} hours',
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        subtitle: Text(
-                          _formatTime(entry.date),
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: Colors.black54,
-                          ),
-                        ),
-                        trailing: IconButton(
-                          onPressed: () => _removeSleepEntry(entry),
-                          icon: const Icon(Icons.remove_circle_outline,
-                              color: Color(0xFFFF006E)),
-                          iconSize: 24,
-                        ),
-                      ),
-                    )),
-                const SizedBox(height: 24),
-              ],
-
-              // Sleep Chart with Filter
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.bar_chart,
-                          color: const Color(0xFFFFBE0B), size: 22),
-                      const SizedBox(width: 8),
                       Text(
-                        'Sleep Patterns',
+                        'Sleep Tracker',
                         style: GoogleFonts.inter(
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Colors.black87,
+                          color: Colors.white,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _showAddSleepDialog(data),
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0x339B86EC)),
+                          ),
+                          child: const Icon(
+                            Icons.add_rounded,
+                            size: 18,
+                            color: Color(0xFF9B86EC),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  // Dropdown Filter
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFFFFBE0B).withOpacity(0.3),
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFFBE0B).withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedFilter,
-                        icon: Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: const Color(0xFFFFBE0B),
-                          size: 24,
-                        ),
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFFFFBE0B),
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        dropdownColor: Colors.white,
-                        items: [
-                          DropdownMenuItem(
-                            value: 'Weekly',
-                            child: Row(
+                  const SizedBox(height: 16),
+
+                  // 2. HERO GLASS CONTAINER
+                  GlassContainer(
+                    blur: 16,
+                    padding: const EdgeInsets.all(24),
+                    color: const Color(0xE6141A20),
+                    border: Border.all(color: const Color(0x339B86EC), width: 1.2),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(
-                                  Icons.calendar_view_week,
-                                  color: const Color(0xFFFFBE0B),
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 8),
-                                Text('Weekly'),
-                              ],
-                            ),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Monthly',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.calendar_month,
-                                  color: const Color(0xFFFFBE0B),
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 8),
-                                Text('Monthly'),
-                              ],
-                            ),
-                          ),
-                        ],
-                        onChanged: (String? newValue) {
-                          if (newValue != null) {
-                            setState(() {
-                              selectedFilter = newValue;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Chart Container
-              Container(
-                height: 240,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFFBE0B).withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: selectedFilter == 'Weekly'
-                    ? _buildWeeklyChart(data)
-                    : _buildMonthlyChart(data),
-              ),
-              const SizedBox(height: 24),
-
-              // Sleep Stages Pie Chart
-              Row(
-                children: [
-                  Icon(Icons.pie_chart,
-                      color: const Color(0xFFFFBE0B), size: 22),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Sleep Stages',
-                    style: GoogleFonts.inter(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFFBE0B).withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: data.sleepHours > 0
-                    ? Row(
-                        children: [
-                          // Pie Chart
-                          Expanded(
-                            flex: 2,
-                            child: SizedBox(
-                              height: 180,
-                              child: PieChart(
-                                PieChartData(
-                                  sectionsSpace: 2,
-                                  centerSpaceRadius: 50,
-                                  sections: [
-                                    PieChartSectionData(
-                                      value: data.sleepHours * 0.3,
-                                      title: '30%',
-                                      color: const Color(0xFFFFBE0B),
-                                      radius: 50,
-                                      titleStyle: GoogleFonts.inter(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF9B86EC),
+                                        shape: BoxShape.circle,
                                       ),
                                     ),
-                                    PieChartSectionData(
-                                      value: data.sleepHours * 0.5,
-                                      title: '50%',
-                                      color: const Color(0xFFFB8500),
-                                      radius: 50,
-                                      titleStyle: GoogleFonts.inter(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    PieChartSectionData(
-                                      value: data.sleepHours * 0.2,
-                                      title: '20%',
-                                      color: const Color(0xFFFFD60A),
-                                      radius: 50,
-                                      titleStyle: GoogleFonts.inter(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'RECORDED SLEEP',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 1.3,
+                                        color: Colors.white60,
                                       ),
                                     ),
                                   ],
                                 ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    Text(
+                                      data.sleepHours.toStringAsFixed(1),
+                                      style: GoogleFonts.inter(
+                                        fontSize: 42,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                        letterSpacing: -1,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '/ ${data.sleepGoal.toStringAsFixed(1)} hrs',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white38,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            // Moon Badge
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF9B86EC), Color(0xFF8338EC)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF9B86EC).withValues(alpha: 0.35),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.nightlight_round,
+                                size: 30,
+                                color: Colors.white,
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Progress Bar
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Stack(
+                            children: [
+                              Container(
+                                height: 12,
+                                width: double.infinity,
+                                color: Colors.white.withValues(alpha: 0.08),
+                              ),
+                              FractionallySizedBox(
+                                widthFactor: progress,
+                                child: Container(
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF9B86EC), Color(0xFF8338EC)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF9B86EC).withValues(alpha: 0.4),
+                                        blurRadius: 8,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 20),
-                          // Legend
-                          Expanded(
-                            flex: 1,
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Status Row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                '$percentage% of sleep target',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF9B86EC),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              diff >= 0
+                                  ? 'Target reached'
+                                  : '${diff.abs().toStringAsFixed(1)}h short of goal',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 3. QUICK SLEEP PRESETS
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF9B86EC),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'LOG SLEEP REST',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.4,
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  GridView.count(
+                    crossAxisCount: 3,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 1.35,
+                    children: [
+                      ...[6.0, 7.0, 7.5, 8.0, 8.5].map((preset) {
+                        return InkWell(
+                          onTap: () {
+                            data.addSleepReading(preset);
+                            CustomNotification.show(
+                              context,
+                              message: 'Sleep recorded: ${preset.toStringAsFixed(1)} hours',
+                              type: NotificationType.success,
+                              title: 'Sleep Logged',
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: GlassContainer(
+                            blur: 12,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            color: const Color(0xE6141A20),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                _buildLegendItem(
-                                  'Deep',
-                                  '${(data.sleepHours * 0.3).toStringAsFixed(1)}h',
-                                  const Color(0xFFFFBE0B),
-                                ),
-                                const SizedBox(height: 12),
-                                _buildLegendItem(
-                                  'Light',
-                                  '${(data.sleepHours * 0.5).toStringAsFixed(1)}h',
-                                  const Color(0xFFFB8500),
-                                ),
-                                const SizedBox(height: 12),
-                                _buildLegendItem(
-                                  'REM',
-                                  '${(data.sleepHours * 0.2).toStringAsFixed(1)}h',
-                                  const Color(0xFFFFD60A),
+                                const Icon(Icons.bedtime_outlined, color: Color(0xFF9B86EC), size: 18),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${preset.toStringAsFixed(1)}h',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                        ],
-                      )
-                    : Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(40),
+                        );
+                      }),
+                      // Custom Slider Button
+                      InkWell(
+                        onTap: () => _showAddSleepDialog(data),
+                        borderRadius: BorderRadius.circular(16),
+                        child: GlassContainer(
+                          blur: 12,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          color: const Color(0x339B86EC),
+                          border: Border.all(color: const Color(0x669B86EC)),
                           child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                Icons.bedtime_outlined,
-                                size: 48,
-                                color: Colors.grey[400],
-                              ),
-                              const SizedBox(height: 16),
+                              const Icon(Icons.tune_rounded, color: Color(0xFF9B86EC), size: 18),
+                              const SizedBox(height: 4),
                               Text(
-                                'No sleep data yet',
+                                'Custom',
                                 style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[600],
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF9B86EC),
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Log your sleep to see stages breakdown',
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  color: Colors.grey[500],
-                                ),
-                                textAlign: TextAlign.center,
                               ),
                             ],
                           ),
                         ),
                       ),
-              ),
-
-              // Sleep Quality Card
-              const SizedBox(height: 24),
-
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFFBE0B).withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Sleep Quality',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    _buildQualityRow(
-                        'Deep Sleep',
-                        '${(data.sleepHours * 0.3).toStringAsFixed(1)}h',
-                        Icons.nights_stay),
-                    const Divider(height: 24),
-                    _buildQualityRow(
-                        'Light Sleep',
-                        '${(data.sleepHours * 0.5).toStringAsFixed(1)}h',
-                        Icons.brightness_3),
-                    const Divider(height: 24),
-                    _buildQualityRow(
-                        'REM Sleep',
-                        '${(data.sleepHours * 0.2).toStringAsFixed(1)}h',
-                        Icons.bedtime),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Bedtime Suggestion
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFFFFBE0B).withOpacity(0.1),
-                      const Color(0xFFFB8500).withOpacity(0.05),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: const Color(0xFFFFBE0B).withOpacity(0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFBE0B),
-                            borderRadius: BorderRadius.circular(10),
+                  const SizedBox(height: 28),
+
+                  // 4. TRENDS & CHARTS
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF9B86EC),
+                              shape: BoxShape.circle,
+                            ),
                           ),
-                          child: const Icon(Icons.lightbulb,
-                              color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'SLEEP PATTERNS',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.4,
+                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Filter Switcher
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                         ),
-                        const SizedBox(width: 12),
+                        child: Row(
+                          children: ['Weekly', 'Monthly'].map((f) {
+                            final isSel = selectedFilter == f;
+                            return InkWell(
+                              onTap: () => setState(() => selectedFilter = f),
+                              borderRadius: BorderRadius.circular(9),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isSel ? const Color(0xFF9B86EC) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                child: Text(
+                                  f,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: isSel ? Colors.white : Colors.white60,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  GlassContainer(
+                    blur: 16,
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                    color: const Color(0xE6141A20),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    child: SizedBox(
+                      height: 190,
+                      child: selectedFilter == 'Weekly'
+                          ? _buildWeeklyChart(data)
+                          : _buildMonthlyChart(data),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // 5. TODAY'S SLEEP ENTRIES
+                  if (data.sleepReadingHistory.isNotEmpty) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF9B86EC),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'RECENT SLEEP LOGS',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.4,
+                                color: Colors.white.withValues(alpha: 0.6),
+                              ),
+                            ),
+                          ],
+                        ),
                         Text(
-                          'Sleep Tips',
-                          style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFFFFBE0B),
-                          ),
+                          '${data.sleepReadingHistory.length} logs',
+                          style: GoogleFonts.inter(fontSize: 12, color: Colors.white38),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    _buildTip('🌙', 'Maintain consistent sleep schedule'),
-                    _buildTip('📱', 'Avoid screens 1 hour before bed'),
-                    _buildTip('🛏️', 'Keep bedroom cool and dark'),
-                    _buildTip('☕', 'Limit caffeine after 2 PM'),
+                    const SizedBox(height: 12),
+                    ...data.sleepReadingHistory.reversed.take(5).map((entry) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: GlassContainer(
+                          blur: 12,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          color: const Color(0xE6141A20),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0x209B86EC),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(Icons.nightlight_round, color: Color(0xFF9B86EC), size: 18),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${entry.hours.toStringAsFixed(1)} hours',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatTime(entry.date),
+                                      style: GoogleFonts.inter(fontSize: 11, color: Colors.white38),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () => _removeSleepEntry(entry),
+                                icon: const Icon(Icons.delete_outline_rounded, color: Colors.white24, size: 20),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 20),
                   ],
-                ),
-              ),
-            ],
-          );
-        },
+
+                  // 6. CLINICAL SLEEP ARCHITECTURE TIPS
+                  GlassContainer(
+                    blur: 14,
+                    padding: const EdgeInsets.all(20),
+                    color: const Color(0xE6141A20),
+                    border: Border.all(color: const Color(0x229B86EC)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.auto_awesome_rounded, color: Color(0xFF9B86EC), size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Circadian & Rest Guidelines',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTipItem('🌙 Adults require 7 to 9 hours of restorative sleep to maintain metabolic stability.'),
+                        _buildTipItem('📵 Blue light exposure within 60 minutes of bedtime delays natural melatonin synthesis.'),
+                        _buildTipItem('❄️ Optimal bedroom ambient temperature for deep slow-wave sleep is between 18°C and 21°C.'),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTipItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          height: 1.45,
+          color: Colors.white70,
+        ),
       ),
     );
   }
 
   Widget _buildWeeklyChart(HealthDataController data) {
     final now = DateTime.now();
-
-    // Create a map for the last 7 days using getSleepForDay helper
     final Map<int, double> sleepByDay = {};
     for (int i = 0; i < 7; i++) {
       final day = now.subtract(Duration(days: 6 - i));
       sleepByDay[i] = data.getSleepForDay(day);
     }
 
-    final hasRealData = sleepByDay.values.any((v) => v > 0);
-
-    if (!hasRealData) {
-      return _buildEmptyChartState(
-        'No sleep data yet',
-        'Log your sleep to see your patterns',
-      );
-    }
-
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: 12,
+        maxY: 12.0,
         barTouchData: BarTouchData(
           enabled: true,
           touchTooltipData: BarTouchTooltipData(
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              final isToday = groupIndex == 6;
               return BarTooltipItem(
-                isToday && rod.toY > 0
-                    ? '${rod.toY.toStringAsFixed(1)}h (Today)'
-                    : 'No data',
+                '${rod.toY.toStringAsFixed(1)} hrs',
                 GoogleFonts.inter(
                   color: Colors.white,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   fontSize: 12,
                 ),
               );
@@ -969,79 +816,70 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
         ),
         titlesData: FlTitlesData(
           show: true,
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              getTitlesWidget: (val, _) {
+                return Text(
+                  '${val.round()}h',
+                  style: GoogleFonts.inter(fontSize: 10, color: Colors.white38),
+                );
+              },
+            ),
+          ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              getTitlesWidget: (value, meta) {
-                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                final today = DateTime.now().weekday - 1;
-                final dayIndex = (today - 6 + value.toInt()) % 7;
-                final isToday = value.toInt() == 6;
-
+              getTitlesWidget: (val, _) {
+                const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                final dIdx = val.toInt().clamp(0, 6);
                 return Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(top: 6),
                   child: Text(
-                    isToday
-                        ? 'Today'
-                        : days[dayIndex < 0 ? dayIndex + 7 : dayIndex],
+                    days[dIdx],
                     style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
-                      color: isToday ? const Color(0xFFFFBE0B) : Colors.black38,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white54,
                     ),
                   ),
                 );
               },
             ),
           ),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-              getTitlesWidget: (value, meta) {
-                return Text(
-                  '${value.toInt()}h',
-                  style: GoogleFonts.inter(fontSize: 10, color: Colors.black45),
-                );
-              },
-            ),
-          ),
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: 2,
-          getDrawingHorizontalLine: (value) {
-            return FlLine(color: Colors.grey.shade200, strokeWidth: 1);
-          },
+          horizontalInterval: 3,
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: Colors.white.withValues(alpha: 0.04),
+            strokeWidth: 1,
+          ),
         ),
         borderData: FlBorderData(show: false),
-        barGroups: List.generate(7, (index) {
-          final sleepHours = sleepByDay[index] ?? 0.0;
-          final isToday = index == 6;
-
+        barGroups: List.generate(7, (idx) {
+          final hrs = sleepByDay[idx] ?? 0.0;
           return BarChartGroupData(
-            x: index,
+            x: idx,
             barRods: [
               BarChartRodData(
-                toY: sleepHours,
-                gradient: LinearGradient(
-                  colors: sleepHours > 0
-                      ? isToday
-                          ? [const Color(0xFFFFBE0B), const Color(0xFFFB8500)]
-                          : [
-                              const Color(0xFFFFBE0B).withOpacity(0.7),
-                              const Color(0xFFFB8500).withOpacity(0.7)
-                            ]
-                      : [Colors.grey.shade200, Colors.grey.shade200],
+                toY: hrs,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF8338EC), Color(0xFF9B86EC)],
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                 ),
-                width: isToday ? 28 : 20,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(6)),
+                width: 16,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                backDrawRodData: BackgroundBarChartRodData(
+                  show: true,
+                  toY: 12.0,
+                  color: Colors.white.withValues(alpha: 0.04),
+                ),
               ),
             ],
           );
@@ -1053,44 +891,29 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
   Widget _buildMonthlyChart(HealthDataController data) {
     final now = DateTime.now();
     final Map<int, double> sleepByWeek = {0: 0, 1: 0, 2: 0, 3: 0};
-    final Map<int, int> daysInWeek = {0: 0, 1: 0, 2: 0, 3: 0};
 
     for (int i = 0; i < 28; i++) {
       final day = now.subtract(Duration(days: i));
       final sleep = data.getSleepForDay(day);
       final weekIndex = 3 - (i ~/ 7);
-
-      if (weekIndex >= 0 && weekIndex < 4 && sleep > 0) {
+      if (weekIndex >= 0 && weekIndex < 4) {
         sleepByWeek[weekIndex] = (sleepByWeek[weekIndex] ?? 0) + sleep;
-        daysInWeek[weekIndex] = (daysInWeek[weekIndex] ?? 0) + 1;
       }
-    }
-
-    final hasRealData = sleepByWeek.values.any((v) => v > 0);
-
-    if (!hasRealData) {
-      return _buildEmptyChartState(
-        'No sleep data yet',
-        'Log your sleep to see monthly patterns',
-      );
     }
 
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: 70,
+        maxY: 70.0,
         barTouchData: BarTouchData(
           enabled: true,
           touchTooltipData: BarTouchTooltipData(
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              final isCurrentWeek = groupIndex == 3;
               return BarTooltipItem(
-                isCurrentWeek && rod.toY > 0
-                    ? '${rod.toY.toStringAsFixed(1)}h (This week)'
-                    : 'No data',
+                '${rod.toY.toStringAsFixed(1)} hrs',
                 GoogleFonts.inter(
                   color: Colors.white,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   fontSize: 12,
                 ),
               );
@@ -1099,203 +922,74 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
         ),
         titlesData: FlTitlesData(
           show: true,
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              getTitlesWidget: (val, _) {
+                return Text(
+                  '${val.round()}h',
+                  style: GoogleFonts.inter(fontSize: 10, color: Colors.white38),
+                );
+              },
+            ),
+          ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              getTitlesWidget: (value, meta) {
-                final labels = ['Week 1', 'Week 2', 'Week 3', 'This Week'];
-                final isCurrentWeek = value.toInt() == 3;
-
+              getTitlesWidget: (val, _) {
+                const weeks = ['W1', 'W2', 'W3', 'W4'];
+                final wIdx = val.toInt().clamp(0, 3);
                 return Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(top: 6),
                   child: Text(
-                    labels[value.toInt()],
+                    weeks[wIdx],
                     style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight:
-                          isCurrentWeek ? FontWeight.w700 : FontWeight.w500,
-                      color: isCurrentWeek
-                          ? const Color(0xFFFFBE0B)
-                          : Colors.black38,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white54,
                     ),
                   ),
                 );
               },
             ),
           ),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-              getTitlesWidget: (value, meta) {
-                return Text(
-                  '${value.toInt()}h',
-                  style: GoogleFonts.inter(fontSize: 10, color: Colors.black45),
-                );
-              },
-            ),
-          ),
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: 10,
-          getDrawingHorizontalLine: (value) {
-            return FlLine(color: Colors.grey.shade200, strokeWidth: 1);
-          },
+          horizontalInterval: 20,
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: Colors.white.withValues(alpha: 0.04),
+            strokeWidth: 1,
+          ),
         ),
         borderData: FlBorderData(show: false),
-        barGroups: List.generate(4, (index) {
-          final weeklySleep = sleepByWeek[index] ?? 0.0;
-          final isCurrentWeek = index == 3;
-
+        barGroups: List.generate(4, (idx) {
+          final totalHrs = sleepByWeek[idx] ?? 0.0;
           return BarChartGroupData(
-            x: index,
+            x: idx,
             barRods: [
               BarChartRodData(
-                toY: weeklySleep,
-                gradient: LinearGradient(
-                  colors: weeklySleep > 0
-                      ? [const Color(0xFFFFBE0B), const Color(0xFFFB8500)]
-                      : [Colors.grey.shade200, Colors.grey.shade200],
+                toY: totalHrs,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF8338EC), Color(0xFF9B86EC)],
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                 ),
-                width: isCurrentWeek ? 48 : 32,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(8)),
+                width: 28,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                backDrawRodData: BackgroundBarChartRodData(
+                  show: true,
+                  toY: 70.0,
+                  color: Colors.white.withValues(alpha: 0.04),
+                ),
               ),
             ],
           );
         }),
-      ),
-    );
-  }
-
-  Widget _buildEmptyChartState(String title, String subtitle) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.bar_chart_outlined,
-            size: 48,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: Colors.grey[500],
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLegendItem(String label, String value, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              Text(
-                value,
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  color: Colors.black54,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQualityRow(String label, String value, IconData icon) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFBE0B).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: const Color(0xFFFFBE0B), size: 20),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: Colors.black54,
-            ),
-          ),
-        ),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Colors.black87,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTip(String emoji, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 16)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: Colors.black54,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

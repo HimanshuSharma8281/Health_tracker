@@ -1,14 +1,15 @@
 import 'dart:typed_data';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import '../config/api_keys.dart';
 
 class GeminiAIService {
-  static const String _apiKey = 'AIzaSyArgSyIEmRgUfwv3Pw1HbjqzRombgz5WSc';
+  static String get _apiKey => ApiKeys.geminiApiKey;
 
   static Future<List<String>> generateHealthInsights(
       Map<String, dynamic> healthData) async {
     try {
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash', // Use stable version
+        model: 'gemini-3.6-flash', // Use gemini-3.6-flash
         apiKey: _apiKey,
       );
 
@@ -60,7 +61,7 @@ Format: Return only 3 bullet points, one per line, starting with •''';
 
       // Use the correct stable model name
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash', // Changed from gemini-2.5-flash
+        model: 'gemini-3.6-flash',
         apiKey: _apiKey,
       );
 
@@ -84,7 +85,7 @@ Be specific with the food name. Do not say "Food Item".''';
       ];
 
       print('🔄 Sending request to Gemini API...');
-      print('📝 Using model: gemini-2.5-flash');
+      print('📝 Using model: gemini-3.6-flash');
 
       final response = await model.generateContent(content).timeout(
             const Duration(seconds: 30),
@@ -230,7 +231,7 @@ Be specific with the food name. Do not say "Food Item".''';
   static Future<Map<String, dynamic>> _tryFlashModel(
       Uint8List imageBytes) async {
     final model = GenerativeModel(
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.6-flash',
       apiKey: _apiKey,
     );
 

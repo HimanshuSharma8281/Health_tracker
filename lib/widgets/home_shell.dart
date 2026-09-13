@@ -1,15 +1,12 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:characters/characters.dart';
 import '../controllers/auth_controller.dart';
-import '../controllers/health_data_controller.dart';
 import '../screens/dashboard_tab.dart';
 import '../screens/ai_health_insights_screen.dart';
 import '../screens/social_tab.dart';
 import '../screens/settings_tab.dart';
-import '../screens/reminders_screen.dart';
-import '../services/food_recognition_service.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -22,10 +19,21 @@ class _HomeShellState extends State<HomeShell> {
   int index = 0;
 
   @override
+  void initState() {
+    super.initState();
+    // Handle the returning-user startup case: if the app restarts while a
+    // user is already authenticated (Google or Email), _initAuth fires without
+    // a context so it cannot call setUserInfo. We do it here once, safely.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final auth = Provider.of<AuthController>(context, listen: false);
+      auth.initializeHealthDataIfNeeded(context);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final auth = context.watch<AuthController>();
-    final health = context.watch<HealthDataController>();
     final tabs = [
       const DashboardTab(),
       const AIHealthInsightsScreen(),
@@ -33,127 +41,63 @@ class _HomeShellState extends State<HomeShell> {
       const SettingsTab(),
     ];
 
-    final enabledRemindersCount =
-        health.reminders.where((r) => r.enabled).length;
-
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF7F7FB),
-      appBar: AppBar(
-        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Hello, ${auth.user?.name.split(' ').first ?? 'Explorer'}',
-              style:
-                  GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700)),
-          Text('Your goals are within reach today',
-              style: GoogleFonts.inter(fontSize: 14, color: Colors.black54)),
-        ]),
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined, size: 28),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const RemindersScreen(),
-                    ),
-                  );
-                },
-              ),
-              if (enabledRemindersCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFF006E),
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 18,
-                      minHeight: 18,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$enabledRemindersCount',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 8),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              radius: 22,
-              backgroundImage: auth.user?.avatarUrl.isNotEmpty == true
-                  ? NetworkImage(auth.user!.avatarUrl)
-                  : null,
-              child: auth.user?.avatarUrl.isNotEmpty == true
-                  ? null
-                  : Text(auth.user?.name.characters.first ?? 'A',
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: const Color(0xFF090D10),
+      appBar: null,
+      resizeToAvoidBottomInset: false,
+      extendBody: true,
       body: tabs[index],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: isDark
-                  ? Colors.black.withOpacity(0.3)
-                  : Colors.black.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
+      bottomNavigationBar: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xE60D1216),
+              border: Border(
+                top: BorderSide(
+                  color: Colors.white.withOpacity(0.08),
+                  width: 1.0,
+                ),
+              ),
             ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(
-                  index: 0,
-                  icon: Icons.dashboard_outlined,
-                  activeIcon: Icons.dashboard,
-                  label: 'Dashboard',
-                  isDark: isDark,
+            child: SafeArea(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildNavItem(
+                      index: 0,
+                      icon: Icons.dashboard_outlined,
+                      activeIcon: Icons.dashboard_rounded,
+                      label: 'Dashboard',
+                      isDark: isDark,
+                    ),
+                    _buildNavItem(
+                      index: 1,
+                      icon: Icons.psychology_outlined,
+                      activeIcon: Icons.psychology_rounded,
+                      label: 'Insights',
+                      isDark: isDark,
+                    ),
+                    _buildNavItem(
+                      index: 2,
+                      icon: Icons.emoji_events_outlined,
+                      activeIcon: Icons.emoji_events_rounded,
+                      label: 'Social',
+                      isDark: isDark,
+                    ),
+                    _buildNavItem(
+                      index: 3,
+                      icon: Icons.settings_outlined,
+                      activeIcon: Icons.settings_rounded,
+                      label: 'Settings',
+                      isDark: isDark,
+                    ),
+                  ],
                 ),
-                _buildNavItem(
-                  index: 1,
-                  icon: Icons.psychology_outlined,
-                  activeIcon: Icons.psychology,
-                  label: 'Insights',
-                  isDark: isDark,
-                ),
-                _buildNavItem(
-                  index: 2,
-                  icon: Icons.emoji_events_outlined,
-                  activeIcon: Icons.emoji_events,
-                  label: 'Social',
-                  isDark: isDark,
-                ),
-                _buildNavItem(
-                  index: 3,
-                  icon: Icons.settings_outlined,
-                  activeIcon: Icons.settings,
-                  label: 'Settings',
-                  isDark: isDark,
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -172,18 +116,25 @@ class _HomeShellState extends State<HomeShell> {
 
     return GestureDetector(
       onTap: () => setState(() => this.index = index),
+      behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
         padding: EdgeInsets.symmetric(
           horizontal: isSelected ? 16 : 12,
-          vertical: 8,
+          vertical: 6,
         ),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF3A86FF).withOpacity(0.1)
+              ? const Color(0xFF48E5C2).withOpacity(0.14)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
+          border: isSelected
+              ? Border.all(
+                  color: const Color(0xFF48E5C2).withOpacity(0.25),
+                  width: 1,
+                )
+              : null,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -191,19 +142,19 @@ class _HomeShellState extends State<HomeShell> {
             Icon(
               isSelected ? activeIcon : icon,
               color: isSelected
-                  ? const Color(0xFF3A86FF)
-                  : (isDark ? Colors.grey[400] : Colors.grey),
-              size: 24,
+                  ? const Color(0xFF48E5C2)
+                  : Colors.white.withOpacity(0.45),
+              size: 22,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Text(
               label,
               style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected
-                    ? const Color(0xFF3A86FF)
-                    : (isDark ? Colors.grey[400] : Colors.grey),
+                    ? const Color(0xFF48E5C2)
+                    : Colors.white.withOpacity(0.45),
               ),
             ),
           ],

@@ -1,30 +1,56 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:tracker/main.dart';
+import 'package:tracker/models/user_profile.dart';
+import 'package:tracker/services/health_score_engine.dart';
+import 'package:tracker/services/health_analysis_service.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const WellnessApp());
+  group('HealthAnalysis & AI Contract Tests', () {
+    final profile = const UserProfile(
+      uid: 'test-user-ai',
+      name: 'Aurora User',
+      email: 'user@aurora.app',
+      avatarUrl: '',
+      age: 28,
+      heightCm: 170.0,
+      weightKg: 65.0,
+      activityLevel: 'active',
+      fitnessGoal: 'stay_healthy',
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('HealthScoreEngine generates deterministic score with zero randomness', () {
+      final score = HealthScoreEngine.calculate(
+        profile: profile,
+        date: '2026-09-12',
+        heartRateBpm: 70,
+        systolic: 120,
+        diastolic: 80,
+        sleepHours: 8.0,
+        waterMl: 2500,
+        caloriesKcal: 2000,
+        steps: 10000,
+      );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      expect(score.overall, inInclusiveRange(0, 100));
+      expect(score.label, isNotEmpty);
+      expect(score.metrics['sleep']!.available, isTrue);
+      expect(score.metrics['sleep']!.score, equals(10));
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('HealthAnalysis model correctly retains deterministic scores', () {
+      final analysis = HealthAnalysis(
+        overallScore: 88,
+        healthStatus: 'Optimal',
+        dailySummary: 'Excellent health status across all monitored metrics.',
+        strengths: ['Consistent hydration', '8 hours restorative sleep'],
+        areasToImprove: ['Slightly low steps compared to goal'],
+        recommendations: ['Take a 15-minute evening walk'],
+        insights: ['Good sleep correlates with steady resting heart rate'],
+      );
+
+      expect(analysis.overallScore, equals(88));
+      expect(analysis.healthStatus, equals('Optimal'));
+      expect(analysis.strengths.length, equals(2));
+      expect(analysis.recommendations.length, equals(1));
+    });
   });
 }

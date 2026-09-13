@@ -1,9 +1,13 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/health_reading.dart';
 
 class SocialService {
   static final DatabaseReference _database = FirebaseDatabase.instance.ref();
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static const String _resetFlagKey = 'challenges_reset_20260912_v1';
 
   // Update user's daily score
   static Future<void> updateUserScore({
@@ -25,16 +29,22 @@ class SocialService {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
 
-    await _database.child('users/$userId').update({
-      'username': username,
-      'score': score,
-      'steps': steps,
-      'waterMl': waterMl,
-      'calories': calories,
-      'sleepHours': sleepHours,
-      'lastUpdated': ServerValue.timestamp,
-      'date': today,
-    });
+    try {
+      await _database.child('users/$userId').update({
+        'username': username,
+        'score': score,
+        'steps': steps,
+        'waterMl': waterMl,
+        'calories': calories,
+        'sleepHours': sleepHours,
+        'lastUpdated': ServerValue.timestamp,
+        'date': today,
+      });
+    } on FirebaseException catch (e) {
+      debugPrint('🏆 [SocialService] updateUserScore FAILED for uid=$userId: code=${e.code} message=${e.message}');
+    } catch (e) {
+      debugPrint('🏆 [SocialService] updateUserScore ERROR for uid=$userId: $e');
+    }
   }
 
   // Calculate health score based on metrics
@@ -89,7 +99,65 @@ class SocialService {
     });
   }
 
-  // Create or join challenge
+  /// Permanently removes a user's record from Realtime Database.
+  static Future<void> deleteUserScore(String userId) async {
+    if (userId.isEmpty) return;
+    try {
+      await _database.child('users/$userId').remove();
+      debugPrint('🗑️ [SocialService] Deleted Realtime Database user entry for uid=$userId');
+    } on FirebaseException catch (e) {
+      debugPrint('⚠️ [SocialService] deleteUserScore FirebaseException: code=${e.code} msg=${e.message}');
+    } catch (e) {
+      debugPrint('⚠️ [SocialService] deleteUserScore note: $e');
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // CHALLENGE MANAGEMENT & RESET (NEW CLEAN ARCHITECTURE)
+  // ════════════════════════════════════════════════════════════════════════
+
+  /// Checks if the one-time cleanup of old challenge data has executed.
+  /// If not, deletes all old challenges from Firestore so challenges start from 0.
+  static Future<void> checkAndClearOldChallengesOnce() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasReset = prefs.getBool(_resetFlagKey) ?? false;
+      if (!hasReset) {
+        debugPrint('🧹 [SocialService] Performing one-time cleanup of old challenge data...');
+        await clearAllOldChallenges();
+        await prefs.setBool(_resetFlagKey, true);
+        debugPrint('✅ [SocialService] Old challenge data successfully cleared. System starting from zero.');
+      }
+    } catch (e) {
+      debugPrint('🔴 [SocialService] checkAndClearOldChallengesOnce ERROR: $e');
+    }
+  }
+
+  /// Completely clears all old challenge documents from Firestore.
+  /// Preserves all user profiles, healthReadings, dailyScores, and global leaderboards.
+  static Future<int> clearAllOldChallenges() async {
+    try {
+      final snapshot = await _firestore.collection('challenges').get();
+      if (snapshot.docs.isEmpty) {
+        debugPrint('🏆 [SocialService] clearAllOldChallenges: No old challenges to delete.');
+        return 0;
+      }
+
+      final batch = _firestore.batch();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+
+      debugPrint('🏆 [SocialService] clearAllOldChallenges: Deleted ${snapshot.docs.length} old challenge documents.');
+      return snapshot.docs.length;
+    } catch (e) {
+      debugPrint('🔴 [SocialService] clearAllOldChallenges ERROR: $e');
+      return 0;
+    }
+  }
+
+  /// Create a new challenge starting from now.
   static Future<void> createChallenge({
     required String challengeId,
     required String title,
@@ -97,66 +165,239 @@ class SocialService {
     required String creatorName,
     required int targetValue,
     required String metricType, // 'steps', 'water', 'calories', 'sleep'
+    String rankingType = 'highest', // 'highest', 'closestToTarget'
+    String description = '',
+    DateTime? startDate,
     required DateTime endDate,
+    int initialProgress = 0,
   }) async {
+    final start = startDate ?? DateTime.now();
+    final todayKey = HealthReading.todayDate();
+
     await _firestore.collection('challenges').doc(challengeId).set({
       'title': title,
+      'description': description,
       'creatorId': creatorId,
       'creatorName': creatorName,
       'targetValue': targetValue,
       'metricType': metricType,
+      'rankingType': rankingType,
+      'startDate': Timestamp.fromDate(start),
       'endDate': Timestamp.fromDate(endDate),
       'participants': [creatorId],
-      'progress': {creatorId: 0},
-      'participantNames': {creatorId: creatorName}, // Already added
-      'createdAt': Timestamp.now(), // Changed from FieldValue.serverTimestamp()
+      'participantNames': {creatorId: creatorName},
+      'progress': {creatorId: initialProgress},
+      'dailyProgress': {
+        creatorId: {todayKey: initialProgress}
+      },
+      'joinedAt': {creatorId: FieldValue.serverTimestamp()},
+      'lastUpdated': {creatorId: FieldValue.serverTimestamp()},
+      'createdAt': FieldValue.serverTimestamp(),
       'isActive': true,
     });
+    debugPrint('✅ [SocialService] Challenge created: id=$challengeId title="$title" metric=$metricType target=$targetValue ranking=$rankingType');
   }
 
-  // Join challenge - Updated to include username
-  static Future<void> joinChallenge(
-      String challengeId, String userId, String username) async {
-    await _firestore.collection('challenges').doc(challengeId).update({
+  /// Join an existing active challenge. Prevents duplicate joining or joining expired challenges.
+  /// Initializes participant's progress from their actual current day total.
+  static Future<void> joinChallenge({
+    required String challengeId,
+    required String userId,
+    required String username,
+    int initialProgress = 0,
+  }) async {
+    final docRef = _firestore.collection('challenges').doc(challengeId);
+    final doc = await docRef.get();
+    if (!doc.exists) throw Exception('Challenge not found');
+
+    final data = doc.data()!;
+    final isActive = data['isActive'] as bool? ?? true;
+    final endDate = (data['endDate'] as Timestamp).toDate();
+
+    if (!isActive || DateTime.now().isAfter(endDate)) {
+      throw Exception('This challenge has already ended and cannot be joined.');
+    }
+
+    final participants = List<String>.from(data['participants'] ?? []);
+    if (participants.contains(userId)) {
+      throw Exception('You are already a participant in this challenge.');
+    }
+
+    final todayKey = HealthReading.todayDate();
+
+    await docRef.update({
       'participants': FieldValue.arrayUnion([userId]),
-      'progress.$userId': 0,
-      'participantNames.$userId': username, // Store username
+      'participantNames.$userId': username,
+      'progress.$userId': initialProgress,
+      'dailyProgress.$userId.$todayKey': initialProgress,
+      'joinedAt.$userId': FieldValue.serverTimestamp(),
+      'lastUpdated.$userId': FieldValue.serverTimestamp(),
     });
+    debugPrint('✅ [SocialService] User $userId ($username) joined challenge $challengeId with initialProgress=$initialProgress');
   }
 
-  // Get active challenges for a specific user
-  static Stream<List<ChallengeData>> getActiveChallenges(String userId) {
+  /// Synchronize real health readings for a user into all active challenges they participate in.
+  ///
+  /// Continuously aggregates the user's daily total without overwriting historical days.
+  static Future<void> syncUserChallengeProgress({
+    required String userId,
+    required String metricType,
+    required int todayTotal,
+    String? date,
+  }) async {
+    if (userId.isEmpty) return;
+
+    try {
+      final dateKey = date ?? HealthReading.todayDate();
+
+      final snapshot = await _firestore
+          .collection('challenges')
+          .where('participants', arrayContains: userId)
+          .where('isActive', isEqualTo: true)
+          .where('metricType', isEqualTo: metricType)
+          .get();
+
+      if (snapshot.docs.isEmpty) return;
+
+      final batch = _firestore.batch();
+      final now = DateTime.now();
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+
+        // Check expiration
+        final endDate = (data['endDate'] as Timestamp?)?.toDate();
+        if (endDate != null && now.isAfter(endDate)) {
+          batch.update(doc.reference, {'isActive': false});
+          continue;
+        }
+
+        // Get user's daily progress map
+        final dailyMapRaw = (data['dailyProgress'] as Map<String, dynamic>?)?[userId];
+        final userDailyMap = <String, int>{};
+        if (dailyMapRaw is Map) {
+          dailyMapRaw.forEach((k, v) {
+            if (v is num) userDailyMap[k.toString()] = v.toInt();
+          });
+        }
+
+        // Update today's total
+        userDailyMap[dateKey] = todayTotal;
+
+        // Cumulative progress across all days recorded in this challenge
+        final cumulativeTotal = userDailyMap.values.fold<int>(0, (acc, val) => acc + val);
+
+        batch.update(doc.reference, {
+          'progress.$userId': cumulativeTotal,
+          'dailyProgress.$userId.$dateKey': todayTotal,
+          'lastUpdated.$userId': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+      debugPrint('🏆 [SocialService] Synced $metricType progress for uid=$userId | today=$todayTotal ml/units');
+    } catch (e) {
+      debugPrint('🔴 [SocialService] syncUserChallengeProgress ERROR for uid=$userId: $e');
+    }
+  }
+
+  /// Batch sync all metrics for a user from controller state into active challenges.
+  static Future<void> syncAllActiveChallengesForUser({
+    required String userId,
+    required int waterMl,
+    required int stepsToday,
+    required int caloriesConsumed,
+    required double sleepHours,
+  }) async {
+    if (userId.isEmpty) return;
+
+    try {
+      await Future.wait([
+        syncUserChallengeProgress(userId: userId, metricType: 'water', todayTotal: waterMl),
+        syncUserChallengeProgress(userId: userId, metricType: 'steps', todayTotal: stepsToday),
+        syncUserChallengeProgress(userId: userId, metricType: 'calories', todayTotal: caloriesConsumed),
+        syncUserChallengeProgress(userId: userId, metricType: 'sleep', todayTotal: sleepHours.round()),
+      ]);
+    } catch (e) {
+      debugPrint('🔴 [SocialService] syncAllActiveChallengesForUser ERROR: $e');
+    }
+  }
+
+  /// Leave an existing challenge. Removes participant from list, names, and progress maps.
+  static Future<void> leaveChallenge({
+    required String challengeId,
+    required String userId,
+  }) async {
+    final docRef = _firestore.collection('challenges').doc(challengeId);
+    await docRef.update({
+      'participants': FieldValue.arrayRemove([userId]),
+      'participantNames.$userId': FieldValue.delete(),
+      'progress.$userId': FieldValue.delete(),
+      'dailyProgress.$userId': FieldValue.delete(),
+    });
+    debugPrint('🚪 [SocialService] User $userId left challenge $challengeId');
+  }
+
+  /// Real-time stream of all challenges joined by [userId].
+  static Stream<List<ChallengeData>> getUserChallenges(String userId) {
     return _firestore
         .collection('challenges')
         .where('participants', arrayContains: userId)
-        .where('isActive', isEqualTo: true)
-        .snapshots() // Removed orderBy to avoid index issues
+        .snapshots()
         .map((snapshot) {
       final challenges = snapshot.docs.map((doc) {
         return ChallengeData.fromFirestore(doc);
       }).toList();
 
-      // Sort manually by creation date
-      challenges.sort((a, b) =>
-          b.id.compareTo(a.id)); // Sort by ID (which contains timestamp)
+      challenges.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return challenges;
     });
   }
 
-  // Get all active challenges (not just user's challenges)
+  /// Real-time stream of active challenges joined by [userId] that have not expired or completed.
+  static Stream<List<ChallengeData>> getActiveChallenges(String userId) {
+    return getUserChallenges(userId).map((challenges) {
+      return challenges.where((c) => c.isActiveForUser(userId)).toList();
+    });
+  }
+
+  /// Real-time stream of completed challenges joined by [userId].
+  static Stream<List<ChallengeData>> getCompletedChallenges(String userId) {
+    return getUserChallenges(userId).map((challenges) {
+      return challenges.where((c) => c.isCompletedByUser(userId)).toList();
+    });
+  }
+
+  /// Pure helper to calculate active and completed counts deterministically.
+  static ({int active, int completed}) calculateUserChallengeCounts({
+    required List<ChallengeData> challenges,
+    required String userId,
+  }) {
+    int active = 0;
+    int completed = 0;
+    for (final c in challenges) {
+      if (!c.participants.contains(userId)) continue;
+      if (c.isActiveForUser(userId)) {
+        active++;
+      } else if (c.isCompletedByUser(userId)) {
+        completed++;
+      }
+    }
+    return (active: active, completed: completed);
+  }
+
+  // Get all active challenges (browse tab)
   static Stream<List<ChallengeData>> getAllActiveChallenges() {
     return _firestore
         .collection('challenges')
         .where('isActive', isEqualTo: true)
-        .snapshots() // Removed orderBy to avoid index issues
+        .snapshots()
         .map((snapshot) {
       final challenges = snapshot.docs.map((doc) {
         return ChallengeData.fromFirestore(doc);
       }).toList();
 
-      // Sort manually by creation date
-      challenges.sort((a, b) =>
-          b.id.compareTo(a.id)); // Sort by ID (which contains timestamp)
+      challenges.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return challenges;
     });
   }
@@ -196,78 +437,6 @@ class SocialService {
     }
 
     return streak;
-  }
-
-  // Update all active challenge progress for a user
-  static Future<void> updateAllChallengeProgress({
-    required String userId,
-    required int steps,
-    required int waterMl,
-    required int calories,
-    required int sleepHours,
-  }) async {
-    try {
-      // Get all active challenges for this user
-      final snapshot = await _firestore
-          .collection('challenges')
-          .where('participants', arrayContains: userId)
-          .where('isActive', isEqualTo: true)
-          .get();
-
-      // Batch update for better performance
-      final batch = _firestore.batch();
-
-      // Update progress for each challenge based on metric type
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final metricType = data['metricType'] as String;
-
-        // Get current date as string for storing daily progress
-        final today = DateTime.now();
-        final dateKey =
-            '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-
-        int newProgress = 0;
-        switch (metricType) {
-          case 'steps':
-            newProgress = steps;
-            break;
-          case 'water':
-            newProgress = waterMl;
-            break;
-          case 'calories':
-            newProgress = calories;
-            break;
-          case 'sleep':
-            newProgress = sleepHours;
-            break;
-        }
-
-        // Update the progress for THIS USER ONLY in this challenge
-        // Store it under a nested structure: progress.userId.date
-        batch.update(doc.reference, {
-          'progress.$userId': newProgress,
-          'dailyProgress.$userId.$dateKey':
-              newProgress, // Store daily progress separately
-          'lastUpdated.$userId': FieldValue.serverTimestamp(),
-        });
-      }
-
-      await batch.commit();
-    } catch (e) {
-      print('Error updating challenge progress: $e');
-    }
-  }
-
-  // Update specific challenge progress (manual update)
-  static Future<void> updateChallengeProgress({
-    required String challengeId,
-    required String userId,
-    required int progress,
-  }) async {
-    await _firestore.collection('challenges').doc(challengeId).update({
-      'progress.$userId': progress,
-    });
   }
 }
 
@@ -309,74 +478,240 @@ class LeaderboardUser {
 class ChallengeData {
   final String id;
   final String title;
+  final String description;
+  final String creatorId;
   final String creatorName;
   final int targetValue;
-  final String metricType;
+  final String metricType; // 'steps', 'water', 'calories', 'sleep'
+  final String rankingType; // 'highest', 'closestToTarget'
+  final DateTime startDate;
   final DateTime endDate;
+  final DateTime createdAt;
   final List<String> participants;
-  final Map<String, int> progress;
-  final Map<String, String> participantNames; // Add this
+  final Map<String, int> progress; // Cumulative total progress
+  final Map<String, Map<String, int>> dailyProgress; // uid -> { date: progress }
+  final Map<String, String> participantNames;
   final bool isActive;
 
   ChallengeData({
     required this.id,
     required this.title,
+    this.description = '',
+    this.creatorId = '',
     required this.creatorName,
     required this.targetValue,
     required this.metricType,
+    this.rankingType = 'highest',
+    DateTime? startDate,
     required this.endDate,
+    DateTime? createdAt,
     required this.participants,
-    required this.progress,
-    required this.participantNames, // Add this
-    required this.isActive,
-  });
+    this.progress = const {},
+    this.dailyProgress = const {},
+    required this.participantNames,
+    this.isActive = true,
+  })  : startDate = startDate ?? DateTime.now(),
+        createdAt = createdAt ?? DateTime.now();
 
   factory ChallengeData.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = (doc.data() as Map<String, dynamic>?) ?? {};
+
+    DateTime parseTimestamp(dynamic val, DateTime fallback) {
+      if (val is Timestamp) return val.toDate();
+      if (val is String) return DateTime.tryParse(val) ?? fallback;
+      return fallback;
+    }
+
+    final start = parseTimestamp(data['startDate'], DateTime.now());
+    final end = parseTimestamp(data['endDate'], DateTime.now().add(const Duration(days: 7)));
+    final created = parseTimestamp(data['createdAt'], DateTime.now());
+
+    // Parse progress map
+    final rawProgress = data['progress'] as Map<String, dynamic>? ?? {};
+    final progressMap = <String, int>{};
+    rawProgress.forEach((k, v) {
+      if (v is num) progressMap[k] = v.toInt();
+    });
+
+    // Parse dailyProgress map
+    final rawDaily = data['dailyProgress'] as Map<String, dynamic>? ?? {};
+    final dailyMap = <String, Map<String, int>>{};
+    rawDaily.forEach((uid, days) {
+      if (days is Map) {
+        final userDays = <String, int>{};
+        days.forEach((dayKey, val) {
+          if (val is num) userDays[dayKey.toString()] = val.toInt();
+        });
+        dailyMap[uid] = userDays;
+      }
+    });
+
+    // Parse participantNames map
+    final rawNames = data['participantNames'] as Map<String, dynamic>? ?? {};
+    final namesMap = <String, String>{};
+    rawNames.forEach((k, v) => namesMap[k] = v.toString());
+
+    final participantsList = List<String>.from(data['participants'] ?? []);
+
     return ChallengeData(
       id: doc.id,
-      title: data['title'] ?? '',
-      creatorName: data['creatorName'] ?? '',
-      targetValue: data['targetValue'] ?? 0,
+      title: data['title'] ?? 'Challenge',
+      description: data['description'] ?? '',
+      creatorId: data['creatorId'] ?? '',
+      creatorName: data['creatorName'] ?? 'Creator',
+      targetValue: (data['targetValue'] as num?)?.toInt() ?? 1,
       metricType: data['metricType'] ?? 'steps',
-      endDate: (data['endDate'] as Timestamp).toDate(),
-      participants: List<String>.from(data['participants'] ?? []),
-      progress: Map<String, int>.from(data['progress'] ?? {}),
-      participantNames:
-          Map<String, String>.from(data['participantNames'] ?? {}), // Add this
+      rankingType: data['rankingType'] ?? 'highest',
+      startDate: start,
+      endDate: end,
+      createdAt: created,
+      participants: participantsList,
+      progress: progressMap,
+      dailyProgress: dailyMap,
+      participantNames: namesMap,
       isActive: data['isActive'] ?? true,
     );
   }
 
+  /// Whether the challenge has passed its end date.
+  bool get isExpired => DateTime.now().isAfter(endDate);
+
+  /// Whether the user has achieved or exceeded the target value for this challenge.
+  bool isGoalAchieved(String userId) {
+    if (targetValue <= 0) return false;
+    final userProgress = getUserProgress(userId);
+    return userProgress >= targetValue;
+  }
+
+  /// Whether this challenge is currently active for [userId]:
+  /// - User has joined (in participants)
+  /// - Challenge is marked active (isActive == true)
+  /// - Challenge has not expired (!isExpired)
+  /// - User has not already achieved the target (!isGoalAchieved)
+  bool isActiveForUser(String userId) {
+    if (!participants.contains(userId)) return false;
+    if (!isActive || isExpired) return false;
+    return !isGoalAchieved(userId);
+  }
+
+  /// Whether this challenge is completed for [userId]:
+  /// - User has joined (in participants)
+  /// - AND (goal is achieved OR challenge has expired OR challenge is marked inactive)
+  bool isCompletedByUser(String userId) {
+    if (!participants.contains(userId)) return false;
+    return isGoalAchieved(userId) || isExpired || !isActive;
+  }
+
+  /// Get cumulative total progress for a user.
   int getUserProgress(String userId) => progress[userId] ?? 0;
 
+  /// Get progress for a specific day.
+  int getUserDailyProgress(String userId, String date) {
+    return dailyProgress[userId]?[date] ?? 0;
+  }
+
+  /// Get average daily progress across recorded days.
+  double getUserAverageProgress(String userId) {
+    final days = dailyProgress[userId];
+    if (days == null || days.isEmpty) return 0.0;
+    final total = days.values.fold<int>(0, (acc, val) => acc + val);
+    return total / days.length;
+  }
+
+  /// Progress percentage towards target (0.0 to 1.0+).
   double getProgressPercentage(String userId) {
-    final userProgress = getUserProgress(userId);
+    if (targetValue <= 0) return 0.0;
+    final userProgress = progress[userId] ?? 0;
     return (userProgress / targetValue).clamp(0.0, 1.0);
   }
 
+  /// Get daily breakdown for a specific user: date (YYYY-MM-DD) -> progress.
+  Map<String, int> getDailyBreakdown(String userId) {
+    return dailyProgress[userId] ?? {};
+  }
+
+  /// Get sorted participants with accurate competition rank.
+  /// 1. Primary sort depends on rankingType:
+  ///    - 'highest': descending progress
+  ///    - 'closestToTarget': ascending absolute distance |progress - targetValue|
+  /// 2. Ties in performance receive equal rank (Standard Competition Ranking, e.g. #1, #1, #3).
+  /// 3. Secondary ordering is deterministic by userId to ensure perfectly stable list presentation.
+  List<Map<String, dynamic>> getRankedParticipants() {
+    if (participants.isEmpty) return [];
+
+    final List<Map<String, dynamic>> list = participants.map((uid) {
+      return <String, dynamic>{
+        'userId': uid,
+        'name': participantNames[uid] ?? 'User',
+        'progress': progress[uid] ?? 0,
+      };
+    }).toList();
+
+    // Sort participants
+    list.sort((a, b) {
+      final progA = a['progress'] as int;
+      final progB = b['progress'] as int;
+
+      int cmp;
+      if (rankingType == 'closestToTarget') {
+        final diffA = (progA - targetValue).abs();
+        final diffB = (progB - targetValue).abs();
+        cmp = diffA.compareTo(diffB);
+      } else {
+        cmp = progB.compareTo(progA);
+      }
+
+      if (cmp != 0) return cmp;
+
+      // Deterministic secondary tie-breaker for ordering
+      return (a['userId'] as String).compareTo(b['userId'] as String);
+    });
+
+    // Assign competition ranks
+    for (int i = 0; i < list.length; i++) {
+      if (i > 0) {
+        final prevProg = list[i - 1]['progress'] as int;
+        final currProg = list[i]['progress'] as int;
+
+        bool isTie;
+        if (rankingType == 'closestToTarget') {
+          isTie = (currProg - targetValue).abs() == (prevProg - targetValue).abs();
+        } else {
+          isTie = currProg == prevProg;
+        }
+
+        if (isTie) {
+          list[i]['rank'] = list[i - 1]['rank'];
+        } else {
+          list[i]['rank'] = i + 1;
+        }
+      } else {
+        list[i]['rank'] = 1;
+      }
+    }
+
+    return list;
+  }
+
+  /// Get current rank for a specific participant (#1, #2, etc.).
   int getRank(String userId) {
-    final sortedParticipants = participants.toList()
-      ..sort((a, b) => (progress[b] ?? 0).compareTo(progress[a] ?? 0));
-    return sortedParticipants.indexOf(userId) + 1;
+    final ranked = getRankedParticipants();
+    for (final p in ranked) {
+      if (p['userId'] == userId) {
+        return p['rank'] as int;
+      }
+    }
+    return ranked.length + 1;
   }
 
-  // Get top participants with their names
+  /// Get top N participants with deterministic rank assigned.
   List<Map<String, dynamic>> getTopParticipants(int count) {
-    final sorted = participants
-        .map((userId) => {
-              'userId': userId,
-              'name': participantNames[userId] ?? 'Unknown',
-              'progress': progress[userId] ?? 0,
-            })
-        .toList()
-      ..sort((a, b) => (b['progress'] as int).compareTo(a['progress'] as int));
-
-    return sorted.take(count).toList();
+    final ranked = getRankedParticipants();
+    return ranked.take(count).toList();
   }
 
-  // Get participant name by userId
+  /// Get participant display name.
   String getParticipantName(String userId) {
-    return participantNames[userId] ?? 'Unknown';
+    return participantNames[userId] ?? 'User';
   }
 }

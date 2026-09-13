@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../controllers/health_data_controller.dart';
+import '../widgets/glass_container.dart';
 import '../widgets/notification_widget.dart';
 
 class BloodPressureScreen extends StatefulWidget {
@@ -19,6 +20,11 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
 
+  static const Color _bgCharcoal = Color(0xFF090D10);
+  static const Color _ambientSapphire = Color(0xFF0D182A);
+  static const Color _sysColor = Color(0xFFA663FF);
+  static const Color _diaColor = Color(0xFF3A86FF);
+
   @override
   void initState() {
     super.initState();
@@ -28,7 +34,7 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
     );
     _scaleAnimation = CurvedAnimation(
       parent: _animationController,
-      curve: Curves.elasticOut,
+      curve: Curves.easeOutCubic,
     );
     _animationController.forward();
   }
@@ -39,409 +45,17 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
     super.dispose();
   }
 
-  List<BloodPressureReading> get _filteredReadings {
-    final controller = context.read<HealthDataController>();
+  List<BloodPressureReading> _getFilteredReadings(HealthDataController controller) {
     return _selectedFilter == 'Weekly'
         ? controller.getLastWeekBPReadings()
         : controller.getLastMonthBPReadings();
   }
 
-  void _showAddReadingDialog() {
-    final systolicController = TextEditingController();
-    final diastolicController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF8338EC).withOpacity(0.2),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header with gradient
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF8338EC), Color(0xFF3A86FF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.favorite,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Add Blood Pressure',
-                            style: GoogleFonts.inter(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Enter your reading',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white.withOpacity(0.85),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Content
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Input fields with enhanced styling
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF8338EC)
-                                          .withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(
-                                      Icons.arrow_upward,
-                                      color: Color(0xFF8338EC),
-                                      size: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Systolic',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF7F7FB),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: const Color(0xFF8338EC)
-                                        .withOpacity(0.3),
-                                    width: 2,
-                                  ),
-                                ),
-                                child: TextField(
-                                  controller: systolicController,
-                                  keyboardType: TextInputType.number,
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF8338EC),
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText: '120',
-                                    hintStyle: GoogleFonts.inter(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.black26,
-                                    ),
-                                    suffixText: 'mmHg',
-                                    suffixStyle: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      color: Colors.black45,
-                                    ),
-                                    border: InputBorder.none,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF3A86FF)
-                                          .withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(
-                                      Icons.arrow_downward,
-                                      color: Color(0xFF3A86FF),
-                                      size: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Diastolic',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF7F7FB),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: const Color(0xFF3A86FF)
-                                        .withOpacity(0.3),
-                                    width: 2,
-                                  ),
-                                ),
-                                child: TextField(
-                                  controller: diastolicController,
-                                  keyboardType: TextInputType.number,
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF3A86FF),
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText: '80',
-                                    hintStyle: GoogleFonts.inter(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.black26,
-                                    ),
-                                    suffixText: 'mmHg',
-                                    suffixStyle: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      color: Colors.black45,
-                                    ),
-                                    border: InputBorder.none,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Info card
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            const Color(0xFF8338EC).withOpacity(0.1),
-                            const Color(0xFF3A86FF).withOpacity(0.05),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFF8338EC).withOpacity(0.2),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF8338EC),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.info_outline,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Normal: <120/80 mmHg',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: const Color(0xFF8338EC),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Action buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(
-                              'Cancel',
-                              style: GoogleFonts.inter(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF8338EC), Color(0xFF3A86FF)],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color:
-                                      const Color(0xFF8338EC).withOpacity(0.3),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () {
-                                  final systolic =
-                                      int.tryParse(systolicController.text);
-                                  final diastolic =
-                                      int.tryParse(diastolicController.text);
-
-                                  if (systolic != null && diastolic != null) {
-                                    context
-                                        .read<HealthDataController>()
-                                        .addBloodPressureReading(
-                                            systolic, diastolic);
-
-                                    Navigator.pop(context);
-                                    CustomNotification.show(
-                                      context,
-                                      message:
-                                          'Blood pressure saved: $systolic/$diastolic mmHg',
-                                      type: NotificationType.success,
-                                      title: 'Reading Added',
-                                    );
-                                  }
-                                },
-                                borderRadius: BorderRadius.circular(12),
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 16),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.add_circle_outline,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Save Reading',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   String _getStatus(int systolic, int diastolic) {
     if (systolic < 120 && diastolic < 80) return 'Normal';
     if (systolic < 130 && diastolic < 80) return 'Elevated';
-    if (systolic < 140 || diastolic < 90) return 'High BP Stage 1';
-    return 'High BP Stage 2';
+    if (systolic < 140 || diastolic < 90) return 'Stage 1 High';
+    return 'Stage 2 High';
   }
 
   Color _getStatusColor(String status) {
@@ -450,52 +64,755 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
         return const Color(0xFF2EC4B6);
       case 'Elevated':
         return const Color(0xFFFFBE0B);
-      case 'High BP Stage 1':
-        return const Color(0xFFFF006E);
-      case 'High BP Stage 2':
-        return const Color(0xFF8B0000);
+      case 'Stage 1 High':
+        return const Color(0xFFFF5C7A);
+      case 'Stage 2 High':
+        return const Color(0xFFFF3355);
       default:
-        return Colors.grey;
+        return Colors.white54;
     }
   }
 
-  Widget _buildChart() {
-    final filteredData = _filteredReadings;
-    if (filteredData.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(40),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'Normal':
+        return Icons.check_circle_rounded;
+      case 'Elevated':
+        return Icons.warning_amber_rounded;
+      case 'Stage 1 High':
+      case 'Stage 2 High':
+        return Icons.error_outline_rounded;
+      default:
+        return Icons.info_outline_rounded;
+    }
+  }
+
+  void _showAddReadingDialog() {
+    final systolicController = TextEditingController(text: '120');
+    final diastolicController = TextEditingController(text: '80');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(modalContext).viewInsets.bottom,
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF141A22),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              border: Border(
+                top: BorderSide(color: Color(0x338338EC), width: 1.5),
+              ),
+            ),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _sysColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.speed_rounded,
+                        color: _sysColor,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Log Blood Pressure',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Systolic & Diastolic Inputs
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _sysColor,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'SYSTOLIC (SYS)',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.0,
+                                  color: _sysColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: _sysColor.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: TextField(
+                              controller: systolicController,
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: '120',
+                                hintStyle: GoogleFonts.inter(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white24,
+                                ),
+                                suffixText: 'mmHg ',
+                                suffixStyle: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: Colors.white38,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _diaColor,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'DIASTOLIC (DIA)',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.0,
+                                  color: _diaColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: _diaColor.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: TextField(
+                              controller: diastolicController,
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: '80',
+                                hintStyle: GoogleFonts.inter(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white24,
+                                ),
+                                suffixText: 'mmHg ',
+                                suffixStyle: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: Colors.white38,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+
+                // Clinical Info Box
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        color: Color(0xFF2EC4B6),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Standard Optimal: < 120 SYS / < 80 DIA mmHg',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+
+                // Save Action Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF8338EC),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      final systolic = int.tryParse(systolicController.text);
+                      final diastolic = int.tryParse(diastolicController.text);
+
+                      if (systolic != null && diastolic != null) {
+                        context.read<HealthDataController>().addBloodPressureReading(
+                              systolic,
+                              diastolic,
+                            );
+
+                        Navigator.pop(modalContext);
+                        CustomNotification.show(
+                          context,
+                          message: 'Blood pressure recorded: $systolic/$diastolic mmHg',
+                          type: NotificationType.success,
+                          title: 'Reading Added',
+                        );
+                      }
+                    },
+                    child: Text(
+                      'Save Measurement',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _bgCharcoal,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(-0.8, -0.6),
+            radius: 1.25,
+            colors: [_ambientSapphire, _bgCharcoal],
+          ),
         ),
-        child: Center(
+        child: SafeArea(
           child: Column(
             children: [
-              Icon(Icons.show_chart, size: 48, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              Text(
-                'No readings yet',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Add your first reading to see the trend',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: Colors.grey[500],
+              _buildTopBar(context),
+              Expanded(
+                child: Consumer<HealthDataController>(
+                  builder: (context, data, _) {
+                    if (data.bloodPressureHistory.isEmpty) {
+                      return _buildEmptyState();
+                    }
+
+                    final latestReading = data.bloodPressureHistory.first;
+                    final status = _getStatus(latestReading.systolic, latestReading.diastolic);
+                    final statusColor = _getStatusColor(status);
+                    final statusIcon = _getStatusIcon(status);
+
+                    return ListView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      children: [
+                        // Hero Card
+                        _buildHeroCard(latestReading, status, statusColor, statusIcon),
+                        const SizedBox(height: 22),
+
+                        // Trend Chart Section
+                        _buildTrendSection(data),
+                        const SizedBox(height: 24),
+
+                        // Reading History
+                        _buildHistorySection(data),
+                        const SizedBox(height: 28),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 16,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _sysColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _sysColor,
+                      blurRadius: 6,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'BLOOD PRESSURE',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          IconButton(
+            onPressed: _showAddReadingDialog,
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _sysColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _sysColor.withValues(alpha: 0.3)),
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                size: 18,
+                color: _sysColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroCard(
+    BloodPressureReading reading,
+    String status,
+    Color statusColor,
+    IconData statusIcon,
+  ) {
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: GlassContainer(
+        blur: 16,
+        color: const Color(0xE6141A20),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: _sysColor.withValues(alpha: 0.25),
+          width: 1.2,
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: _sysColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: _sysColor.withValues(alpha: 0.3)),
+                        ),
+                        child: const Icon(
+                          Icons.speed_rounded,
+                          color: _sysColor,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'LATEST READING',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.1,
+                                color: _sysColor,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              DateFormat('MMM d, h:mm a').format(reading.timestamp),
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white70,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, color: statusColor, size: 14),
+                      const SizedBox(width: 5),
+                      Text(
+                        status,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: statusColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // SYS / DIA Display
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Column(
+                  children: [
+                    Text(
+                      '${reading.systolic}',
+                      style: GoogleFonts.inter(
+                        fontSize: 56,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -1,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _sysColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'SYS mmHg',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.0,
+                          color: _sysColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    '/',
+                    style: GoogleFonts.inter(
+                      fontSize: 48,
+                      fontWeight: FontWeight.w300,
+                      color: Colors.white.withValues(alpha: 0.25),
+                    ),
+                  ),
+                ),
+                Column(
+                  children: [
+                    Text(
+                      '${reading.diastolic}',
+                      style: GoogleFonts.inter(
+                        fontSize: 56,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -1,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _diaColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'DIA mmHg',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.0,
+                          color: _diaColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrendSection(HealthDataController data) {
+    final filteredData = _getFilteredReadings(data);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _sysColor,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'PRESSURE TRENDS',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+            // Segmented Filter Control
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              child: Row(
+                children: ['Weekly', 'Monthly'].map((filter) {
+                  final isSelected = _selectedFilter == filter;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedFilter = filter),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isSelected ? _sysColor : Colors.transparent,
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: Text(
+                        filter,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        GlassContainer(
+          blur: 16,
+          color: const Color(0xE6141A20),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _buildLegendIndicator('SYS', _sysColor),
+                  const SizedBox(width: 14),
+                  _buildLegendIndicator('DIA', _diaColor),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 190,
+                child: _buildChartWidget(filteredData),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegendIndicator(String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color,
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: Colors.white70,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChartWidget(List<BloodPressureReading> filteredData) {
+    if (filteredData.isEmpty) {
+      return Center(
+        child: Text(
+          'No readings for this timeframe',
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            color: Colors.white.withValues(alpha: 0.4),
+          ),
+        ),
       );
     }
 
-    // Dynamically calculate minY and maxY with padding, ensure minY < maxY
     final allValues = [
       ...filteredData.map((r) => r.systolic),
       ...filteredData.map((r) => r.diastolic),
@@ -503,755 +820,337 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
     final minValue = allValues.reduce((a, b) => a < b ? a : b);
     final maxValue = allValues.reduce((a, b) => a > b ? a : b);
 
-    double minY = (minValue - 10).toDouble();
-    double maxY = (maxValue + 10).toDouble();
+    double minY = (minValue - 10).toDouble().clamp(40.0, 200.0);
+    double maxY = (maxValue + 15).toDouble().clamp(minY + 30, 240.0);
 
-    // Ensure minY is at least 0 and minY < maxY
-    if (minY < 0) minY = 0;
-    if (maxY - minY < 20) maxY = minY + 20;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 20,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: Colors.white.withValues(alpha: 0.05),
+              strokeWidth: 1,
+            );
+          },
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 26,
+              interval: 1,
+              getTitlesWidget: (value, meta) {
+                final index = value.toInt();
+                if (index < 0 || index >= filteredData.length) {
+                  return const SizedBox();
+                }
+                final date = filteredData[index].timestamp;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    DateFormat('MM/dd').format(date),
+                    style: GoogleFonts.inter(
+                      fontSize: 9,
+                      color: Colors.white.withValues(alpha: 0.4),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 20,
+              reservedSize: 36,
+              getTitlesWidget: (value, meta) {
+                return Text(
+                  value.toInt().toString(),
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    color: Colors.white.withValues(alpha: 0.35),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        minX: 0,
+        maxX: (filteredData.length - 1).toDouble().clamp(0.0, 50.0),
+        minY: minY,
+        maxY: maxY,
+        lineBarsData: [
+          // Systolic line
+          LineChartBarData(
+            spots: filteredData.asMap().entries.map((e) {
+              return FlSpot(e.key.toDouble(), e.value.systolic.toDouble());
+            }).toList(),
+            isCurved: true,
+            color: _sysColor,
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 3.5,
+                  color: _sysColor,
+                  strokeWidth: 2,
+                  strokeColor: const Color(0xFF090D10),
+                );
+              },
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              color: _sysColor.withValues(alpha: 0.08),
+            ),
+          ),
+          // Diastolic line
+          LineChartBarData(
+            spots: filteredData.asMap().entries.map((e) {
+              return FlSpot(e.key.toDouble(), e.value.diastolic.toDouble());
+            }).toList(),
+            isCurved: true,
+            color: _diaColor,
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 3.5,
+                  color: _diaColor,
+                  strokeWidth: 2,
+                  strokeColor: const Color(0xFF090D10),
+                );
+              },
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              color: _diaColor.withValues(alpha: 0.08),
+            ),
           ),
         ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Trends',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF7F7FB),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    _buildFilterButton('Weekly'),
-                    _buildFilterButton('Monthly'),
-                  ],
-                ),
-              ),
-            ],
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => const Color(0xFF141A20),
+            tooltipBorder: BorderSide(
+              color: Colors.white.withValues(alpha: 0.15),
+              width: 1,
+            ),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final isSys = spot.barIndex == 0;
+                return LineTooltipItem(
+                  '${isSys ? 'SYS' : 'DIA'}: ${spot.y.toInt()} mmHg',
+                  GoogleFonts.inter(
+                    color: isSys ? _sysColor : _diaColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                );
+              }).toList();
+            },
           ),
-          const SizedBox(height: 24),
-          SizedBox(
-            height: 200,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: 20,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: Colors.grey.withOpacity(0.2),
-                      strokeWidth: 1,
-                    );
-                  },
-                ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 30,
-                      interval: 1,
-                      getTitlesWidget: (value, meta) {
-                        final index = value.toInt();
-                        if (index < 0 || index >= filteredData.length) {
-                          return const Text('');
-                        }
-                        final date = filteredData[index].timestamp;
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            DateFormat('MM/dd').format(date),
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              color: Colors.black54,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 20,
-                      reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toInt().toString(),
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: Colors.black54,
-                          ),
-                        );
-                      },
-                    ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistorySection(HealthDataController data) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _sysColor,
                   ),
                 ),
-                borderData: FlBorderData(show: false),
-                minX: 0,
-                maxX: (filteredData.length - 1).toDouble(),
-                minY: minY,
-                maxY: maxY,
-                lineBarsData: [
-                  // Systolic line
-                  LineChartBarData(
-                    spots: filteredData.asMap().entries.map((e) {
-                      return FlSpot(
-                        e.key.toDouble(),
-                        e.value.systolic.toDouble(),
-                      );
-                    }).toList(),
-                    isCurved: true,
-                    color: const Color(0xFF8338EC),
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: const Color(0xFF8338EC),
-                          strokeWidth: 2,
-                          strokeColor: Colors.white,
-                        );
-                      },
+                const SizedBox(width: 8),
+                Text(
+                  'READING LOGS',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              '${data.bloodPressureHistory.length} logs',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.white38,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...data.bloodPressureHistory.map((reading) {
+          final readingStatus = _getStatus(reading.systolic, reading.diastolic);
+          final readingColor = _getStatusColor(readingStatus);
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: GlassContainer(
+              blur: 12,
+              color: const Color(0xE6141A20),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: readingColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: const Color(0xFF8338EC).withOpacity(0.1),
+                    child: Icon(
+                      Icons.favorite_rounded,
+                      color: readingColor,
+                      size: 18,
                     ),
                   ),
-                  // Diastolic line
-                  LineChartBarData(
-                    spots: filteredData.asMap().entries.map((e) {
-                      return FlSpot(
-                        e.key.toDouble(),
-                        e.value.diastolic.toDouble(),
-                      );
-                    }).toList(),
-                    isCurved: true,
-                    color: const Color(0xFF3A86FF),
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: const Color(0xFF3A86FF),
-                          strokeWidth: 2,
-                          strokeColor: Colors.white,
-                        );
-                      },
-                    ),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: const Color(0xFF3A86FF).withOpacity(0.1),
-                    ),
-                  ),
-                ],
-                lineTouchData: LineTouchData(
-                  touchTooltipData: LineTouchTooltipData(
-                    //  backgroundColor: Colors.white,
-                    tooltipRoundedRadius: 8,
-                    tooltipPadding: const EdgeInsets.all(8),
-                    tooltipBorder: BorderSide(
-                      color: Colors.grey.withOpacity(0.2),
-                    ),
-                    getTooltipItems: (touchedSpots) {
-                      return touchedSpots.map((spot) {
-                        final reading = filteredData[spot.x.toInt()];
-                        return LineTooltipItem(
-                          '${spot.barIndex == 0 ? 'SYS' : 'DIA'}: ${spot.y.toInt()}\n',
-                          GoogleFonts.inter(
-                            color: spot.barIndex == 0
-                                ? const Color(0xFF8338EC)
-                                : const Color(0xFF3A86FF),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            TextSpan(
-                              text: DateFormat('MMM dd')
-                                  .format(reading.timestamp),
+                            Text(
+                              '${reading.systolic}/${reading.diastolic}',
                               style: GoogleFonts.inter(
-                                color: Colors.black54,
-                                fontSize: 10,
-                                fontWeight: FontWeight.normal,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'mmHg',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                color: Colors.white38,
                               ),
                             ),
                           ],
-                        );
-                      }).toList();
-                    },
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          DateFormat('MMM dd, yyyy • hh:mm a').format(reading.timestamp),
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.45),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: readingColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: readingColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      readingStatus,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: readingColor,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          // Legend
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildLegendItem('Systolic', const Color(0xFF8338EC)),
-              const SizedBox(width: 24),
-              _buildLegendItem('Diastolic', const Color(0xFF3A86FF)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterButton(String label) {
-    final isSelected = _selectedFilter == label;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedFilter = label;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF3A86FF) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : Colors.black54,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLegendItem(String label, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            color: Colors.black54,
-          ),
-        ),
+          );
+        }),
       ],
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F0FF),
-      appBar: AppBar(
-        title: Text(
-          'Blood Pressure',
-          style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: Consumer<HealthDataController>(
-        builder: (context, data, _) {
-          if (data.bloodPressureHistory.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF8338EC).withOpacity(0.1),
-                          const Color(0xFF3A86FF).withOpacity(0.1),
-                        ],
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.favorite_border,
-                        size: 60, color: const Color(0xFF8338EC)),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(
-                    'No blood pressure readings',
-                    style: GoogleFonts.inter(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Track your blood pressure daily for\nbetter health insights',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.black54,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF8338EC), Color(0xFF3A86FF)],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF8338EC).withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton.icon(
-                      onPressed: _showAddReadingDialog,
-                      icon: const Icon(Icons.add_circle_outline, size: 24),
-                      label: Text(
-                        'Add First Reading',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        foregroundColor: Colors.white,
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 18,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final latestReading = data.bloodPressureHistory.first;
-          final status =
-              _getStatus(latestReading.systolic, latestReading.diastolic);
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Animated Hero Card
-                ScaleTransition(
-                  scale: _scaleAnimation,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF8338EC), Color(0xFF3A86FF)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF8338EC).withOpacity(0.4),
-                          blurRadius: 30,
-                          offset: const Offset(0, 15),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        // Heart icon
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.favorite,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Latest Reading',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white.withOpacity(0.85),
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Column(
-                              children: [
-                                Text(
-                                  '${latestReading.systolic}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 52,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    height: 1,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    'SYS',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                      letterSpacing: 1.5,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
-                              child: Text(
-                                '/',
-                                style: GoogleFonts.inter(
-                                  fontSize: 48,
-                                  fontWeight: FontWeight.w300,
-                                  color: Colors.white.withOpacity(0.7),
-                                ),
-                              ),
-                            ),
-                            Column(
-                              children: [
-                                Text(
-                                  '${latestReading.diastolic}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 52,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    height: 1,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    'DIA',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                      letterSpacing: 1.5,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.25),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _getStatusIcon(status),
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                status,
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Add Button
-                Container(
-                  width: double.infinity,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF8338EC), Color(0xFF3A86FF)],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF8338EC).withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _showAddReadingDialog,
-                      borderRadius: BorderRadius.circular(20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.add,
-                                color: Colors.white, size: 24),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Add New Reading',
-                            style: GoogleFonts.inter(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Chart
-                _buildChart(),
-                const SizedBox(height: 24),
-
-                // History
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.history,
-                            color: const Color(0xFF8338EC), size: 22),
-                        const SizedBox(width: 8),
-                        Text(
-                          'History',
-                          style: GoogleFonts.inter(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF8338EC).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${data.bloodPressureHistory.length} entries',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF8338EC),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                ...data.bloodPressureHistory.map((reading) {
-                  final readingStatus =
-                      _getStatus(reading.systolic, reading.diastolic);
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                      leading: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              _getStatusColor(readingStatus).withOpacity(0.8),
-                              _getStatusColor(readingStatus),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.favorite,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      title: Text(
-                        '${reading.systolic}/${reading.diastolic} mmHg',
-                        style: GoogleFonts.inter(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          DateFormat('MMM dd, yyyy • hh:mm a')
-                              .format(reading.timestamp),
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              _getStatusColor(readingStatus).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color:
-                                _getStatusColor(readingStatus).withOpacity(0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Text(
-                          readingStatus,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: _getStatusColor(readingStatus),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ],
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              color: _sysColor.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+              border: Border.all(color: _sysColor.withValues(alpha: 0.25)),
             ),
-          );
-        },
+            child: const Icon(
+              Icons.speed_rounded,
+              size: 42,
+              color: _sysColor,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'No blood pressure records',
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Log your systolic and diastolic measurements\nto track cardiovascular trends',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: Colors.white.withValues(alpha: 0.5),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _showAddReadingDialog,
+            icon: const Icon(Icons.add_rounded, size: 18, color: Colors.white),
+            label: Text(
+              'Add First Reading',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8338EC),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            ),
+          ),
+        ],
       ),
     );
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'Normal':
-        return Icons.check_circle;
-      case 'Elevated':
-        return Icons.warning_amber_rounded;
-      case 'High BP Stage 1':
-      case 'High BP Stage 2':
-        return Icons.error;
-      default:
-        return Icons.info;
-    }
   }
 }

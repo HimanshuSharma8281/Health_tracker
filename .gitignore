@@ -46,3 +46,35 @@ app.*.map.json
 
 # API Keys - Never commit!
 lib/config/api_keys.dart
+serviceAccountKey.json
+*serviceAccount*.json
+*.credentials.json
+ai_backend/serviceAccountKey.json
+
+# =========================
+# Python Backend
+# =========================
+
+# Virtual environments
+ai_backend/.venv/
+ai_backend/venv/
+ai_backend/env/
+
+# Python cache
+ai_backend/__pycache__/
+ai_backend/**/*.pyc
+*.py[cod]
+
+# Environment variables / secrets
+.env
+ai_backend/.env
+
+# Python test/cache
+.pytest_cache/
+.mypy_cache/
+
+# Python build artifacts
+*.egg-info/
+
+# Desktop
+desktop.ini

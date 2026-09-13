@@ -8,33 +8,245 @@ class HeroSection extends StatelessWidget {
 
   final HealthDataController data;
 
+  Color _scoreColor(int score) {
+    if (score >= 90) return const Color(0xFF10B981);
+    if (score >= 75) return const Color(0xFF3A86FF);
+    if (score >= 60) return const Color(0xFFF59E0B);
+    if (score >= 40) return const Color(0xFFF97316);
+    return const Color(0xFFEF4444);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final todayScore = data.todayScore;
+    final hasScore = todayScore != null && todayScore.availableMetricCount > 0;
+    final scoreVal = todayScore?.overall ?? 0;
+    final accentColor = hasScore ? _scoreColor(scoreVal) : const Color(0xFF3A86FF);
+
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-            colors: [Color(0xFFBDE0FE), Color(0xFFC8E7FF)]),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(children: [
-        Expanded(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Today\'s Snapshot',
-                style: GoogleFonts.inter(
-                    fontSize: 20, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            Text(
-                'Steps ${data.stepsToday} • Hydration ${data.waterMl} ml • Sleep ${data.sleepHours.toStringAsFixed(1)} h',
-                style: GoogleFonts.inter(color: Colors.black54)),
-            const SizedBox(height: 12),
-          ]),
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withValues(alpha: 0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(
+          color: accentColor.withValues(alpha: 0.2),
+          width: 1.5,
         ),
-        const SizedBox(width: 12),
-        const Icon(Icons.favorite_rounded, size: 52, color: Color(0xFF3A86FF)),
-      ]),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Score Radial/Circle Badge
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      accentColor.withValues(alpha: 0.15),
+                      accentColor.withValues(alpha: 0.3),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(color: accentColor, width: 2.5),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        hasScore ? '$scoreVal' : '—',
+                        style: GoogleFonts.inter(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: accentColor,
+                          height: 1.0,
+                        ),
+                      ),
+                      Text(
+                        '/100',
+                        style: GoogleFonts.inter(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: accentColor.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Daily Health Score',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            hasScore ? todayScore.label : 'Calculating',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: accentColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      hasScore
+                          ? 'Deterministic clinical score from ${todayScore.availableMetricCount} active metrics'
+                          : 'Log water, sleep, steps, or vitals to generate your clinical score',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (hasScore) ...[
+            const SizedBox(height: 16),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            // Per-metric breakdown chips
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: todayScore.metrics.entries.map((entry) {
+                  final metric = entry.value;
+                  final available = metric.available;
+                  return Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: available
+                          ? const Color(0xFFF7F7FB)
+                          : Colors.grey.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: available
+                            ? Colors.black12
+                            : Colors.transparent,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _metricIcon(entry.key),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _metricLabel(entry.key),
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: available
+                                ? Colors.black87
+                                : Colors.black38,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          available ? '${(metric.score * 10).round()}%' : '—',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: available
+                                ? _metricScoreColor(metric.score)
+                                : Colors.black38,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
+  }
+
+  static String _metricIcon(String key) {
+    switch (key) {
+      case 'water':
+        return '💧';
+      case 'sleep':
+        return '😴';
+      case 'activity':
+      case 'steps':
+        return '👟';
+      case 'calories':
+        return '🔥';
+      case 'heart_rate':
+        return '❤️';
+      case 'blood_pressure':
+        return '🩺';
+      default:
+        return '📊';
+    }
+  }
+
+  static String _metricLabel(String key) {
+    switch (key) {
+      case 'water':
+        return 'Water';
+      case 'sleep':
+        return 'Sleep';
+      case 'activity':
+      case 'steps':
+        return 'Steps';
+      case 'calories':
+        return 'Calories';
+      case 'heart_rate':
+        return 'Heart Rate';
+      case 'blood_pressure':
+        return 'BP';
+      default:
+        return key;
+    }
+  }
+
+  static Color _metricScoreColor(int score) {
+    if (score >= 8) return const Color(0xFF10B981);
+    if (score >= 6) return const Color(0xFF3A86FF);
+    if (score >= 4) return const Color(0xFFF59E0B);
+    return const Color(0xFFEF4444);
   }
 }
 

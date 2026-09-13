@@ -31,6 +31,10 @@ android {
         versionName = flutter.versionName
     }
 
+    packagingOptions {
+        doNotStrip "**/*.so"
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

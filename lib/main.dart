@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'controllers/auth_controller.dart';
 import 'controllers/health_data_controller.dart';
 import 'controllers/theme_controller.dart';
+import 'controllers/aurora_chat_controller.dart';
 import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
 import 'widgets/home_shell.dart';
@@ -38,6 +38,7 @@ class WellnessApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthController()),
         ChangeNotifierProvider(create: (_) => HealthDataController()),
         ChangeNotifierProvider(create: (_) => ThemeController()),
+        ChangeNotifierProvider(create: (_) => AuroraChatController()),
       ],
       child: Consumer<ThemeController>(
         builder: (context, themeController, _) {
@@ -135,23 +136,19 @@ class _RootScreenState extends State<RootScreen> {
   @override
   void initState() {
     super.initState();
-    // Check auth state on app start
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = Provider.of<AuthController>(context, listen: false);
-      final healthData =
-          Provider.of<HealthDataController>(context, listen: false);
-
-      // If user is already signed in, set the user info
-      if (auth.user != null) {
-        final firebaseAuth = FirebaseAuth.instance;
-        if (firebaseAuth.currentUser != null) {
-          healthData.setUserInfo(
-            firebaseAuth.currentUser!.uid,
-            auth.user!.name,
-          );
-        }
-      }
-    });
+    // NOTE: HealthDataController is initialized via setUserInfo() which is
+    // called explicitly from each sign-in method in AuthController.
+    // Do NOT call setUserInfo here — doing so creates a second (or third)
+    // initialization call that races with the async _loadUserData() already
+    // started by the sign-in flow, causing the data-clear race condition that
+    // broke Google Sign-In health data persistence.
+    //
+    // For returning users (already signed in when app starts), the
+    // AuthController._initAuth() authStateChanges listener fires on startup
+    // and calls _loadUserProfile() to rebuild the UserProfile. The
+    // HealthDataController will be initialized when the user next interacts
+    // with the app OR when the sign-in flow runs setUserInfo.
+    debugPrint('🟦 [RootScreen] initState – auth.user=${Provider.of<AuthController>(context, listen: false).user?.email}');
   }
 
   @override

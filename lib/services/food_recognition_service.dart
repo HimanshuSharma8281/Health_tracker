@@ -1,9 +1,10 @@
 import 'dart:io';
 import 'gemini_ai_service.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import '../config/api_keys.dart';
 
 class FoodRecognitionService {
-  static const String _geminiApiKey = 'AIzaSyArgSyIEmRgUfwv3Pw1HbjqzRombgz5WSc';
+  static String get _geminiApiKey => ApiKeys.geminiApiKey;
 
   static Future<Map<String, dynamic>> recognizeFoodFromImage(
       File imageFile) async {
@@ -49,7 +50,7 @@ class FoodRecognitionService {
 
       // Use google_generative_ai package instead of http
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         apiKey: _geminiApiKey,
       );
 
