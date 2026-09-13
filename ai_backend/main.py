@@ -1,6 +1,13 @@
 import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import (
+    FastAPI,
+    Depends,
+    HTTPException,
+    status,
+    UploadFile,
+    File,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .auth.firebase_auth import get_current_user, AuthenticatedUser
@@ -56,6 +63,88 @@ async def health_check():
         "gemini_connected": gemini_service.is_configured,
         "firestore_cloud_connected": firestore_service.is_cloud_connected
     }
+
+@app.post("/api/v1/food/analyze")
+async def analyze_food_image(
+    image: UploadFile = File(...),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    """
+    Analyze a food image using Gemini Vision.
+
+    Authentication is required.
+    Firebase UID is taken from the verified token and is never
+    accepted from the client as an identity parameter.
+    """
+
+    print("[FoodVision] Request started")
+    print("[FoodVision] Firebase authentication: PASS")
+    print("[FoodVision] UID verified: true")
+
+    # Validate MIME type
+    allowed_types = {
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+    }
+
+    if image.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported image type. Use JPEG, PNG or WebP.",
+        )
+
+    try:
+        image_bytes = await image.read()
+
+        # 10 MB maximum
+        max_size = 10 * 1024 * 1024
+
+        if not image_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Image is empty.",
+            )
+
+        if len(image_bytes) > max_size:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="Image is too large. Maximum size is 10 MB.",
+            )
+
+        print(
+            f"[FoodVision] Image received: "
+            f"{len(image_bytes)} bytes"
+        )
+
+        result = await gemini_service.analyze_food_image(
+            image_bytes=image_bytes,
+            mime_type=image.content_type,
+        )
+
+        print(
+            f"[FoodVision] Request completed: "
+            f"{result.get('name')}"
+        )
+
+        return {
+            "success": True,
+            "data": result,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        print(
+            f"[FoodVision Error] "
+            f"{str(e)[:300]}"
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to analyze food image at this time.",
+        )
 
 @app.post("/api/v1/chat", response_model=ChatResponse)
 async def chat_endpoint(

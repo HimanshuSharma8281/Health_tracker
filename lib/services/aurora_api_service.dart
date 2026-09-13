@@ -32,19 +32,15 @@ class AuroraChatResult {
 }
 
 class AuroraApiService {
-  static const String _envHost = String.fromEnvironment('AURORA_BACKEND_URL');
+  static const String _envHost =
+      String.fromEnvironment('AURORA_BACKEND_URL');
 
-  // Development LAN IP of the host Windows machine running FastAPI:
-  static const String defaultHostLanIp = 'http://192.168.1.5:8000';
+  static const String productionBackendUrl =
+      'https://aurora-ai-backend-vcmb.onrender.com';
 
   static String get baseUrl {
     if (_envHost.isNotEmpty) return _envHost;
-    if (kIsWeb) return 'http://127.0.0.1:8000';
-    if (Platform.isAndroid) {
-      // Physical Android phone connected to the same Wi-Fi as the Windows PC
-      return defaultHostLanIp;
-    }
-    return 'http://127.0.0.1:8000';
+    return productionBackendUrl;
   }
 
   /// Sends a message to the Agentic Python Backend, with automatic local fallback.
@@ -110,7 +106,7 @@ class AuroraApiService {
 
       final response = await http
           .post(uri, headers: headers, body: requestBody)
-          .timeout(const Duration(seconds: 25));
+          .timeout(const Duration(seconds: 90));
 
       debugPrint('[AuroraAPI] HTTP status: ${response.statusCode}');
 

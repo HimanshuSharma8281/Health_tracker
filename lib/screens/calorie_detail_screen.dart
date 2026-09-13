@@ -208,8 +208,13 @@ class _CalorieDetailScreenState extends State<CalorieDetailScreen> {
               children: [
                 const Icon(Icons.error_outline, color: Color(0xFFFF006E)),
                 const SizedBox(width: 12),
-                Text('Unable to Identify Food',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                Expanded(
+                  child: Text(
+                    'Unable to Identify Food',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
             content: Column(
