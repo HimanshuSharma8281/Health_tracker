@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../controllers/auth_controller.dart';
 import '../models/user_profile.dart';
+import 'health_onboarding_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   final Function(UserProfile) onSignedUp;
@@ -62,7 +63,7 @@ class _SignUpScreenState extends State<SignUpScreen>
       setState(() => _isLoading = true);
 
       final auth = Provider.of<AuthController>(context, listen: false);
-      final success = await auth.signUpWithEmail(
+      final status = await auth.signUpWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         name: _nameController.text.trim(),
@@ -71,7 +72,23 @@ class _SignUpScreenState extends State<SignUpScreen>
 
       setState(() => _isLoading = false);
 
-      if (!success && mounted) {
+      if (status == SignUpStatus.accountAlreadyExists && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              auth.error ??
+                  'An account with this email already exists. Please sign in instead.',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: const Color(0xFFFF5C7A),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+        Navigator.pop(context); // Cleanly return to Login page
+      } else if (status == SignUpStatus.error && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -85,8 +102,16 @@ class _SignUpScreenState extends State<SignUpScreen>
             ),
           ),
         );
-      } else if (success && auth.user != null) {
+      } else if (status == SignUpStatus.successNewUser &&
+          auth.user != null &&
+          mounted) {
         widget.onSignedUp(auth.user!);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const HealthOnboardingScreen(),
+          ),
+        );
       }
     } else if (!_acceptTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -100,6 +125,102 @@ class _SignUpScreenState extends State<SignUpScreen>
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleGoogleSignUp() async {
+    setState(() => _isLoading = true);
+    final auth = Provider.of<AuthController>(context, listen: false);
+    final status = await auth.signUpWithGoogle(context: context);
+    setState(() => _isLoading = false);
+
+    if (status == SignUpStatus.accountAlreadyExists && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            auth.error ?? 'Account already exists. Please sign in instead.',
+            style: GoogleFonts.inter(color: Colors.white),
+          ),
+          backgroundColor: const Color(0xFFFF5C7A),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+      Navigator.pop(context); // Cleanly return to Login page
+    } else if (status == SignUpStatus.error && mounted && auth.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            auth.error!,
+            style: GoogleFonts.inter(color: Colors.white),
+          ),
+          backgroundColor: const Color(0xFFFF5C7A),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } else if (status == SignUpStatus.successNewUser &&
+        auth.user != null &&
+        mounted) {
+      widget.onSignedUp(auth.user!);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HealthOnboardingScreen(),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleTwitterSignUp() async {
+    setState(() => _isLoading = true);
+    final auth = Provider.of<AuthController>(context, listen: false);
+    final status = await auth.signUpWithTwitter(context: context);
+    setState(() => _isLoading = false);
+
+    if (status == SignUpStatus.accountAlreadyExists && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            auth.error ?? 'Account already exists. Please sign in instead.',
+            style: GoogleFonts.inter(color: Colors.white),
+          ),
+          backgroundColor: const Color(0xFFFF5C7A),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+      Navigator.pop(context); // Cleanly return to Login page
+    } else if (status == SignUpStatus.error && mounted && auth.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            auth.error!,
+            style: GoogleFonts.inter(color: Colors.white),
+          ),
+          backgroundColor: const Color(0xFFFF5C7A),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } else if (status == SignUpStatus.successNewUser &&
+        auth.user != null &&
+        mounted) {
+      widget.onSignedUp(auth.user!);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HealthOnboardingScreen(),
         ),
       );
     }
@@ -168,6 +289,10 @@ class _SignUpScreenState extends State<SignUpScreen>
 
                           // Sign Up Form Card
                           _buildSignUpCard(),
+                          const SizedBox(height: 20),
+
+                          // Social Sign Up Options
+                          _buildSocialSignUp(),
                           const SizedBox(height: 20),
 
                           // Sign In Link
@@ -646,6 +771,95 @@ class _SignUpScreenState extends State<SignUpScreen>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSocialSignUp() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Divider(
+                color: Colors.white.withValues(alpha: 0.12),
+                thickness: 1,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Text(
+                'OR SIGN UP WITH',
+                style: GoogleFonts.inter(
+                  color: Colors.white38,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Divider(
+                color: Colors.white.withValues(alpha: 0.12),
+                thickness: 1,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildSocialButton(
+              icon: Icons.g_mobiledata_rounded,
+              label: 'Google',
+              iconColor: const Color(0xFFFF5C7A),
+              onTap: _isLoading ? () {} : _handleGoogleSignUp,
+            ),
+            const SizedBox(width: 14),
+            _buildSocialButton(
+              icon: Icons.close_rounded,
+              label: 'Twitter',
+              iconColor: Colors.white,
+              onTap: _isLoading ? () {} : _handleTwitterSignUp,
+              customIcon: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSocialButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color iconColor = const Color(0xFF3A86FF),
+    Widget? customIcon,
+  }) {
+    return InkWell(
+      onTap: _isLoading ? null : onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 64,
+        height: 56,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.1),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Center(
+          child: customIcon ?? Icon(icon, size: 30, color: iconColor),
         ),
       ),
     );

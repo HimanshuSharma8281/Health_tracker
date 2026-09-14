@@ -218,7 +218,7 @@ class _CircularScoreGaugeState extends State<CircularScoreGauge>
         // Number of tracked cards: Outside and below all circles
         Text(
           hasScore
-              ? '${activeRings.length} of 6 tracked'
+              ? '${activeRings.length} of 7 tracked'
               : 'No metrics tracked',
           style: GoogleFonts.inter(
             fontSize: 11,
@@ -342,9 +342,12 @@ class _DynamicConcentricScorePainter extends CustomPainter {
     } else if (n == 5) {
       strokeWidth = 5.5;
       ringSpacing = 9.0;
-    } else {
+    } else if (n == 6) {
       strokeWidth = 4.8;
       ringSpacing = 8.0;
+    } else {
+      strokeWidth = 4.2;
+      ringSpacing = 7.0;
     }
 
     final trackPaint = Paint()

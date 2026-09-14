@@ -1336,6 +1336,7 @@ class HealthDataController extends ChangeNotifier {
       waterMl: waterMl > 0 ? waterMl : null,
       caloriesKcal: caloriesConsumed > 0 ? caloriesConsumed : null,
       steps: stepsToday > 0 ? stepsToday : null,
+      bloodSugarMgDl: bloodSugar > 0 ? bloodSugar : null,
     );
 
     _todayScore = score;
@@ -1419,22 +1420,53 @@ class HealthDataController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Date Range Helpers ──────────────────────────────────────────────────
+
+  static DateTime startOfDay(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+  static DateTime startOfTomorrow(DateTime dt) => DateTime(dt.year, dt.month, dt.day + 1);
+
+  static DateTime getWeeklyStartDate([DateTime? referenceDate]) {
+    final now = referenceDate ?? DateTime.now();
+    return startOfDay(now).subtract(const Duration(days: 6));
+  }
+
+  static DateTime getWeeklyEndDate([DateTime? referenceDate]) {
+    final now = referenceDate ?? DateTime.now();
+    return startOfTomorrow(now);
+  }
+
+  static DateTime getMonthlyStartDate([DateTime? referenceDate]) {
+    final now = referenceDate ?? DateTime.now();
+    return DateTime(now.year, now.month, 1);
+  }
+
+  static DateTime getMonthlyEndDate([DateTime? referenceDate]) {
+    final now = referenceDate ?? DateTime.now();
+    return DateTime(now.year, now.month + 1, 1);
+  }
+
+  // ── Filtered Readings for Trends ────────────────────────────────────────
+
   List<BloodPressureReading> getLastWeekBPReadings() {
     if (bloodPressureHistory.isEmpty) return [];
-    final now = DateTime.now();
-    final sevenDaysAgo = now.subtract(const Duration(days: 6));
-    return bloodPressureHistory
-        .where((r) => r.timestamp.isAfter(sevenDaysAgo))
+    final start = getWeeklyStartDate();
+    final end = getWeeklyEndDate();
+    final list = bloodPressureHistory
+        .where((r) => !r.timestamp.isBefore(start) && r.timestamp.isBefore(end))
         .toList();
+    list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return list;
   }
 
   List<BloodPressureReading> getLastMonthBPReadings() {
     if (bloodPressureHistory.isEmpty) return [];
-    final now = DateTime.now();
-    final thirtyDaysAgo = now.subtract(const Duration(days: 29));
-    return bloodPressureHistory
-        .where((r) => r.timestamp.isAfter(thirtyDaysAgo))
+    final start = getMonthlyStartDate();
+    final end = getMonthlyEndDate();
+    final list = bloodPressureHistory
+        .where((r) => !r.timestamp.isBefore(start) && r.timestamp.isBefore(end))
         .toList();
+    list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return list;
   }
 
   void updateBloodSugar(double value) {
@@ -1446,7 +1478,6 @@ class HealthDataController extends ChangeNotifier {
     bloodSugar = value;
     bloodSugarHistory
         .add(BloodSugarReading(id: docId, date: now, value: value));
-    if (bloodSugarHistory.length > 30) bloodSugarHistory.removeAt(0);
 
     // Write to Firestore with canonical docId
     _writeReading(HealthReading(
@@ -1458,6 +1489,7 @@ class HealthDataController extends ChangeNotifier {
       timestamp: now,
     ));
 
+    _refreshDailyScore();
     notifyListeners();
   }
 
@@ -1482,6 +1514,7 @@ class HealthDataController extends ChangeNotifier {
       });
     }
 
+    _refreshDailyScore();
     notifyListeners();
   }
 
@@ -1501,7 +1534,6 @@ class HealthDataController extends ChangeNotifier {
         timestamp: now,
       ),
     );
-    if (heartRateHistory.length > 30) heartRateHistory.removeLast();
 
     // Write to Firestore with canonical docId
     _writeReading(HealthReading(
@@ -1544,38 +1576,46 @@ class HealthDataController extends ChangeNotifier {
 
   List<HeartRateReading> getLastWeekHeartRateReadings() {
     if (heartRateHistory.isEmpty) return [];
-    final now = DateTime.now();
-    final sevenDaysAgo = now.subtract(const Duration(days: 6));
-    return heartRateHistory
-        .where((r) => r.timestamp.isAfter(sevenDaysAgo))
+    final start = getWeeklyStartDate();
+    final end = getWeeklyEndDate();
+    final list = heartRateHistory
+        .where((r) => !r.timestamp.isBefore(start) && r.timestamp.isBefore(end))
         .toList();
+    list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return list;
   }
 
   List<HeartRateReading> getLastMonthHeartRateReadings() {
     if (heartRateHistory.isEmpty) return [];
-    final now = DateTime.now();
-    final thirtyDaysAgo = now.subtract(const Duration(days: 29));
-    return heartRateHistory
-        .where((r) => r.timestamp.isAfter(thirtyDaysAgo))
+    final start = getMonthlyStartDate();
+    final end = getMonthlyEndDate();
+    final list = heartRateHistory
+        .where((r) => !r.timestamp.isBefore(start) && r.timestamp.isBefore(end))
         .toList();
+    list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return list;
   }
 
   List<BloodSugarReading> getLastWeekReadings() {
     if (bloodSugarHistory.isEmpty) return [];
-    final now = DateTime.now();
-    final sevenDaysAgo = now.subtract(const Duration(days: 6));
-    return bloodSugarHistory
-        .where((r) => r.date.isAfter(sevenDaysAgo))
+    final start = getWeeklyStartDate();
+    final end = getWeeklyEndDate();
+    final list = bloodSugarHistory
+        .where((r) => !r.date.isBefore(start) && r.date.isBefore(end))
         .toList();
+    list.sort((a, b) => a.date.compareTo(b.date));
+    return list;
   }
 
   List<BloodSugarReading> getLastMonthReadings() {
     if (bloodSugarHistory.isEmpty) return [];
-    final now = DateTime.now();
-    final thirtyDaysAgo = now.subtract(const Duration(days: 29));
-    return bloodSugarHistory
-        .where((r) => r.date.isAfter(thirtyDaysAgo))
+    final start = getMonthlyStartDate();
+    final end = getMonthlyEndDate();
+    final list = bloodSugarHistory
+        .where((r) => !r.date.isBefore(start) && r.date.isBefore(end))
         .toList();
+    list.sort((a, b) => a.date.compareTo(b.date));
+    return list;
   }
 
   void toggleReminder(ReminderItem reminder) {

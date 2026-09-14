@@ -813,9 +813,12 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
       );
     }
 
+    final sortedData = List<BloodPressureReading>.from(filteredData)
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
     final allValues = [
-      ...filteredData.map((r) => r.systolic),
-      ...filteredData.map((r) => r.diastolic),
+      ...sortedData.map((r) => r.systolic),
+      ...sortedData.map((r) => r.diastolic),
     ];
     final minValue = allValues.reduce((a, b) => a < b ? a : b);
     final maxValue = allValues.reduce((a, b) => a > b ? a : b);
@@ -844,13 +847,13 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 26,
-              interval: 1,
+              interval: sortedData.length <= 7 ? 1.0 : (sortedData.length / 5).ceilToDouble(),
               getTitlesWidget: (value, meta) {
                 final index = value.toInt();
-                if (index < 0 || index >= filteredData.length) {
+                if (index < 0 || index >= sortedData.length) {
                   return const SizedBox();
                 }
-                final date = filteredData[index].timestamp;
+                final date = sortedData[index].timestamp;
                 return Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
@@ -883,13 +886,13 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
         ),
         borderData: FlBorderData(show: false),
         minX: 0,
-        maxX: (filteredData.length - 1).toDouble().clamp(0.0, 50.0),
+        maxX: (sortedData.length - 1).toDouble().clamp(0.0, 50.0),
         minY: minY,
         maxY: maxY,
         lineBarsData: [
           // Systolic line
           LineChartBarData(
-            spots: filteredData.asMap().entries.map((e) {
+            spots: sortedData.asMap().entries.map((e) {
               return FlSpot(e.key.toDouble(), e.value.systolic.toDouble());
             }).toList(),
             isCurved: true,
@@ -914,7 +917,7 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
           ),
           // Diastolic line
           LineChartBarData(
-            spots: filteredData.asMap().entries.map((e) {
+            spots: sortedData.asMap().entries.map((e) {
               return FlSpot(e.key.toDouble(), e.value.diastolic.toDouble());
             }).toList(),
             isCurved: true,

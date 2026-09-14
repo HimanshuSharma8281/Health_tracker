@@ -4,7 +4,7 @@ import 'package:tracker/services/health_score_engine.dart';
 
 void main() {
   group('HealthScoreEngine Deterministic Tests', () {
-    final profile = const UserProfile(
+    const profile = UserProfile(
       uid: 'test-user-123',
       name: 'Test User',
       email: 'test@example.com',
@@ -48,7 +48,7 @@ void main() {
 
         for (final key in initialScore.metrics.keys) {
           expect(nextScore.metrics[key]!.score, equals(initialScore.metrics[key]!.score));
-          expect(nextScore.metrics[key]!.available, equals(true));
+          expect(nextScore.metrics[key]!.available, equals(initialScore.metrics[key]!.available));
         }
       }
     });

@@ -214,7 +214,7 @@ void main() {
       );
 
       // Verify tracking counter
-      expect(find.text('3 of 6 tracked'), findsOneWidget);
+      expect(find.text('3 of 7 tracked'), findsOneWidget);
       expect(find.text('Steps 85%'), findsOneWidget);
       expect(find.text('Water 60%'), findsOneWidget);
       expect(find.text('Sleep 90%'), findsOneWidget);
@@ -251,7 +251,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify 4th ring appears with its score
-      expect(find.text('4 of 6 tracked'), findsOneWidget);
+      expect(find.text('4 of 7 tracked'), findsOneWidget);
       expect(find.text('Heart 72%'), findsOneWidget);
     });
 

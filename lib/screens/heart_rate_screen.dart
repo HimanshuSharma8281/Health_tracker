@@ -1078,7 +1078,7 @@ class _HeartRateScreenState extends State<HeartRateScreen>
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 22,
-              interval: math.max(1, (sorted.length / 4).floor()).toDouble(),
+              interval: sorted.length <= 7 ? 1.0 : math.max(1, (sorted.length / 4).floor()).toDouble(),
               getTitlesWidget: (val, _) {
                 final idx = val.toInt();
                 if (idx < 0 || idx >= sorted.length) return const SizedBox();

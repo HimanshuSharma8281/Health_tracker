@@ -455,7 +455,7 @@ class _BloodSugarScreenState extends State<BloodSugarScreen> {
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              interval: _selectedFilter == 'Weekly' ? 1 : 5,
+              interval: readings.length <= 7 ? 1.0 : (readings.length / 5).ceilToDouble(),
               reservedSize: 26,
               getTitlesWidget: (value, meta) {
                 if (value.toInt() >= 0 && value.toInt() < readings.length) {
@@ -756,9 +756,10 @@ class _BloodSugarScreenState extends State<BloodSugarScreen> {
 
   String _getDayLabel(DateTime date) {
     final now = DateTime.now();
-    final diff = now.difference(date).inDays;
+    final today = DateTime(now.year, now.month, now.day);
+    final readingDay = DateTime(date.year, date.month, date.day);
     if (_selectedFilter == 'Weekly') {
-      if (diff == 0) return 'Today';
+      if (readingDay == today) return 'Today';
       const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       return days[date.weekday - 1];
     }

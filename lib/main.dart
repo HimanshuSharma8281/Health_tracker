@@ -159,14 +159,13 @@ class _RootScreenState extends State<RootScreen> {
         if (!auth.isAuthenticated) {
           return LoginScreen(
             onSignedIn: (profile) {
-              // User info already set in auth controller
               setState(() {});
             },
           );
         }
 
-        // Show main app
-        return const HomeShell(); // Changed from MainScreen to HomeShell
+        // Authenticated users go directly to HomeShell Dashboard
+        return const HomeShell();
       },
     );
   }

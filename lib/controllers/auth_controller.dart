@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_profile.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/social_service.dart';
 import '../controllers/health_data_controller.dart';
 import 'package:provider/provider.dart';
+
+enum SignUpStatus {
+  successNewUser,
+  accountAlreadyExists,
+  cancelled,
+  error,
+}
 
 /// Auth state controller.
 ///
@@ -90,162 +98,411 @@ class AuthController extends ChangeNotifier {
 
   // ── Sign-in methods ───────────────────────────────────────────────────────
 
-  /// Sign in with email/password.
+  /// Maps Firebase Auth exception codes to clean, human-readable user messages.
+  String _mapFirebaseAuthError(FirebaseAuthException e) {
+    debugPrint('🔒 [AUTH] FirebaseAuthException: code=${e.code} msg=${e.message}');
+    switch (e.code) {
+      case 'email-already-in-use':
+        return 'An account with this email already exists. Please sign in instead.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'weak-password':
+        return 'Password is too weak. Please choose a stronger password.';
+      case 'user-not-found':
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Invalid email or password. Please try again.';
+      case 'user-disabled':
+        return 'This user account has been disabled.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please wait a few moments and try again.';
+      case 'network-request-failed':
+        return 'Network error. Please check your internet connection.';
+      case 'account-exists-with-different-credential':
+        return 'An account already exists with the same email using a different sign-in method.';
+      case 'web-context-cancelled':
+      case 'cancelled':
+      case 'canceled':
+      case 'user-cancelled':
+        return 'Sign in was cancelled.';
+      case 'web-internal-error':
+        return 'Authentication encountered an internal error. Please try again.';
+      default:
+        return e.message ?? 'Authentication failed [${e.code}]. Please try again.';
+    }
+  }
+
+  /// Sign in with email/password (from Login Screen).
   Future<bool> signInWithEmail({
     required String email,
     required String password,
     required BuildContext? context,
   }) async {
+    if (loading) return false;
     loading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final authProfile = await _authService.signInWithEmail(
+      debugPrint('🔒 [AUTH] Sign-in with email started');
+      final result = await _authService.signInWithEmail(
         email: email,
         password: password,
       );
+      final authProfile = result?.profile;
 
       if (authProfile != null && _authService.currentUser != null) {
         final uid = _authService.currentUser!.uid;
-        debugPrint('🔒 [Auth] signInWithEmail success: uid=$uid');
+        debugPrint('🔒 [AUTH] Firebase sign-in successful: uid=$uid');
 
-        // Create or load Firestore profile
-        _user = await FirestoreService.instance.createProfileIfAbsent(
-          uid: uid,
-          name: authProfile.name,
-          email: authProfile.email,
-          avatarUrl: authProfile.avatarUrl,
-        );
+        try {
+          // Create or load Firestore profile
+          _user = await FirestoreService.instance.createProfileIfAbsent(
+            uid: uid,
+            name: authProfile.name,
+            email: authProfile.email,
+            avatarUrl: authProfile.avatarUrl,
+          );
 
-        // Initialize health data — exactly once, no delay
-        if (context != null && context.mounted) {
-          final healthData =
-              Provider.of<HealthDataController>(context, listen: false);
-          healthData.setUserInfo(uid, _user!.name);
-          healthData.loadProfile(_user!);
+          // Initialize health data — exactly once
+          if (context != null && context.mounted) {
+            final healthData =
+                Provider.of<HealthDataController>(context, listen: false);
+            healthData.setUserInfo(uid, _user!.name);
+            healthData.loadProfile(_user!);
+          }
+        } catch (e) {
+          debugPrint('⚠️ [AUTH] Post-auth profile sync error: $e');
+          _user ??= authProfile;
         }
       }
 
       loading = false;
       notifyListeners();
       return _user != null;
+    } on FirebaseAuthException catch (e) {
+      _error = _mapFirebaseAuthError(e);
+      loading = false;
+      notifyListeners();
+      return false;
     } catch (e) {
-      _error = e.toString();
+      debugPrint('🔴 [AUTH] Unexpected error in signInWithEmail: $e');
+      _error = 'Unable to sign in. Please try again.';
       loading = false;
       notifyListeners();
       return false;
     }
   }
 
-  /// Sign in with Google.
+  /// Sign in with Google (from Login Screen).
   Future<bool> signInWithGoogle({BuildContext? context}) async {
+    if (loading) return false;
     loading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final authProfile = await _authService.signInWithGoogle();
+      debugPrint('🔒 [AUTH] Google sign-in started');
+      final result = await _authService.signInWithGoogle();
 
-      if (authProfile != null && _authService.currentUser != null) {
+      // User cancelled Google sign-in
+      if (result == null) {
+        debugPrint('🔒 [AUTH] Google sign-in cancelled or returned null');
+        loading = false;
+        _error = null;
+        notifyListeners();
+        return false;
+      }
+
+      final authProfile = result.profile;
+
+      if (_authService.currentUser != null && authProfile != null) {
         final uid = _authService.currentUser!.uid;
-        debugPrint('🔒 [Auth] signInWithGoogle success: uid=$uid');
+        debugPrint('🔒 [AUTH] Google authentication succeeded: uid=$uid');
 
-        // Create or load Firestore profile
-        _user = await FirestoreService.instance.createProfileIfAbsent(
-          uid: uid,
-          name: authProfile.name,
-          email: authProfile.email,
-          avatarUrl: authProfile.avatarUrl,
-        );
+        try {
+          _user = await FirestoreService.instance.createProfileIfAbsent(
+            uid: uid,
+            name: authProfile.name,
+            email: authProfile.email,
+            avatarUrl: authProfile.avatarUrl,
+          );
 
-        // Initialize health data — exactly once, no delay
-        if (context != null && context.mounted) {
-          final healthData =
-              Provider.of<HealthDataController>(context, listen: false);
-          healthData.setUserInfo(uid, _user!.name);
-          healthData.loadProfile(_user!);
+          if (context != null && context.mounted) {
+            final healthData =
+                Provider.of<HealthDataController>(context, listen: false);
+            healthData.setUserInfo(uid, _user!.name);
+            healthData.loadProfile(_user!);
+          }
+        } catch (e) {
+          debugPrint('⚠️ [AUTH] Post-auth profile sync error: $e');
+          _user ??= authProfile;
         }
       }
 
       loading = false;
       notifyListeners();
       return _user != null;
+    } on FirebaseAuthException catch (e) {
+      _error = _mapFirebaseAuthError(e);
+      loading = false;
+      notifyListeners();
+      return false;
     } catch (e) {
-      _error = e.toString();
+      debugPrint('🔴 [AUTH] Unexpected error in signInWithGoogle: $e');
+      _error = 'Google sign-in could not be completed. Please try again.';
       loading = false;
       notifyListeners();
       return false;
     }
   }
 
-  /// Sign in with Twitter.
+  /// Sign in with Twitter/X (from Login Screen).
   Future<bool> signInWithTwitter({BuildContext? context}) async {
+    if (loading) return false;
     loading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final authProfile = await _authService.signInWithTwitter();
+      debugPrint('🔒 [AUTH] Twitter/X sign-in started');
+      final result = await _authService.signInWithTwitter();
 
-      if (authProfile != null && _authService.currentUser != null) {
+      if (result == null) {
+        debugPrint('🔒 [AUTH] Twitter sign-in cancelled or returned null');
+        loading = false;
+        _error = null;
+        notifyListeners();
+        return false;
+      }
+
+      final authProfile = result.profile;
+
+      if (_authService.currentUser != null && authProfile != null) {
         final uid = _authService.currentUser!.uid;
-        debugPrint('🔒 [Auth] signInWithTwitter success: uid=$uid');
+        debugPrint('🔒 [AUTH] Twitter/X authentication succeeded: uid=$uid');
 
-        _user = await FirestoreService.instance.createProfileIfAbsent(
-          uid: uid,
-          name: authProfile.name,
-          email: authProfile.email,
-          avatarUrl: authProfile.avatarUrl,
-        );
+        try {
+          _user = await FirestoreService.instance.createProfileIfAbsent(
+            uid: uid,
+            name: authProfile.name,
+            email: authProfile.email,
+            avatarUrl: authProfile.avatarUrl,
+          );
 
-        if (context != null && context.mounted) {
-          final healthData =
-              Provider.of<HealthDataController>(context, listen: false);
-          healthData.setUserInfo(uid, _user!.name);
-          healthData.loadProfile(_user!);
+          if (context != null && context.mounted) {
+            final healthData =
+                Provider.of<HealthDataController>(context, listen: false);
+            healthData.setUserInfo(uid, _user!.name);
+            healthData.loadProfile(_user!);
+          }
+        } catch (e) {
+          debugPrint('⚠️ [AUTH] Post-auth profile sync error: $e');
+          _user ??= authProfile;
         }
       }
 
       loading = false;
       notifyListeners();
       return _user != null;
+    } on FirebaseAuthException catch (e) {
+      _error = _mapFirebaseAuthError(e);
+      loading = false;
+      notifyListeners();
+      return false;
     } catch (e) {
-      _error = e.toString();
+      debugPrint('🔴 [AUTH] Unexpected error in signInWithTwitter: $e');
+      _error = 'Twitter sign-in could not be completed. Please try again.';
       loading = false;
       notifyListeners();
       return false;
     }
   }
 
-  /// Sign up with email/password.
-  Future<bool> signUpWithEmail({
+  // ── Sign-up methods (with isNewUser inspection) ───────────────────────────
+
+  /// Sign up with Google (from Sign Up screen).
+  /// Inspects isNewUser to prevent existing users from going to onboarding.
+  Future<SignUpStatus> signUpWithGoogle({BuildContext? context}) async {
+    if (loading) return SignUpStatus.error;
+    loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      debugPrint('🔒 [AUTH] Google sign-up started');
+      final result = await _authService.signInWithGoogle();
+
+      if (result == null) {
+        debugPrint('🔒 [AUTH] Google sign-up cancelled by user');
+        loading = false;
+        _error = null;
+        notifyListeners();
+        return SignUpStatus.cancelled;
+      }
+
+      // Check whether this is an existing Firebase user
+      if (!result.isNewUser) {
+        debugPrint('⚠️ [AUTH] Existing Google user attempted signup: uid=${result.profile?.uid}');
+        _error = 'Account already exists. Please sign in instead.';
+        await _authService.signOut();
+        _user = null;
+        loading = false;
+        notifyListeners();
+        return SignUpStatus.accountAlreadyExists;
+      }
+
+      final authProfile = result.profile;
+      if (authProfile != null && _authService.currentUser != null) {
+        final uid = _authService.currentUser!.uid;
+        debugPrint('🔒 [AUTH] New Google user registered: uid=$uid');
+        try {
+          _user = await FirestoreService.instance.createProfileIfAbsent(
+            uid: uid,
+            name: authProfile.name,
+            email: authProfile.email,
+            avatarUrl: authProfile.avatarUrl,
+          );
+
+          if (context != null && context.mounted) {
+            final healthData =
+                Provider.of<HealthDataController>(context, listen: false);
+            healthData.setUserInfo(uid, _user!.name);
+            healthData.loadProfile(_user!);
+          }
+        } catch (e) {
+          debugPrint('⚠️ [AUTH] Post-auth profile sync error: $e');
+          _user ??= authProfile;
+        }
+      }
+
+      loading = false;
+      notifyListeners();
+      return SignUpStatus.successNewUser;
+    } on FirebaseAuthException catch (e) {
+      _error = _mapFirebaseAuthError(e);
+      loading = false;
+      notifyListeners();
+      return SignUpStatus.error;
+    } catch (e) {
+      debugPrint('🔴 [AUTH] Unexpected error in signUpWithGoogle: $e');
+      _error = 'Google sign-up could not be completed. Please try again.';
+      loading = false;
+      notifyListeners();
+      return SignUpStatus.error;
+    }
+  }
+
+  /// Sign up with Twitter/X (from Sign Up screen).
+  /// Inspects isNewUser to prevent existing users from going to onboarding.
+  Future<SignUpStatus> signUpWithTwitter({BuildContext? context}) async {
+    if (loading) return SignUpStatus.error;
+    loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      debugPrint('🔒 [AUTH] Twitter/X sign-up started');
+      final result = await _authService.signInWithTwitter();
+
+      if (result == null) {
+        debugPrint('🔒 [AUTH] Twitter sign-up cancelled by user');
+        loading = false;
+        _error = null;
+        notifyListeners();
+        return SignUpStatus.cancelled;
+      }
+
+      // Check whether this is an existing Firebase user
+      if (!result.isNewUser) {
+        debugPrint('⚠️ [AUTH] Existing Twitter user attempted signup: uid=${result.profile?.uid}');
+        _error = 'Account already exists. Please sign in instead.';
+        await _authService.signOut();
+        _user = null;
+        loading = false;
+        notifyListeners();
+        return SignUpStatus.accountAlreadyExists;
+      }
+
+      final authProfile = result.profile;
+      if (authProfile != null && _authService.currentUser != null) {
+        final uid = _authService.currentUser!.uid;
+        debugPrint('🔒 [AUTH] New Twitter user registered: uid=$uid');
+        try {
+          _user = await FirestoreService.instance.createProfileIfAbsent(
+            uid: uid,
+            name: authProfile.name,
+            email: authProfile.email,
+            avatarUrl: authProfile.avatarUrl,
+          );
+
+          if (context != null && context.mounted) {
+            final healthData =
+                Provider.of<HealthDataController>(context, listen: false);
+            healthData.setUserInfo(uid, _user!.name);
+            healthData.loadProfile(_user!);
+          }
+        } catch (e) {
+          debugPrint('⚠️ [AUTH] Post-auth profile sync error: $e');
+          _user ??= authProfile;
+        }
+      }
+
+      loading = false;
+      notifyListeners();
+      return SignUpStatus.successNewUser;
+    } on FirebaseAuthException catch (e) {
+      _error = _mapFirebaseAuthError(e);
+      loading = false;
+      notifyListeners();
+      return SignUpStatus.error;
+    } catch (e) {
+      debugPrint('🔴 [AUTH] Unexpected error in signUpWithTwitter: $e');
+      _error = 'Twitter sign-up could not be completed. Please try again.';
+      loading = false;
+      notifyListeners();
+      return SignUpStatus.error;
+    }
+  }
+
+  /// Sign up with email/password (from Sign Up screen).
+  Future<SignUpStatus> signUpWithEmail({
     required String email,
     required String password,
     required String name,
     required BuildContext? context,
   }) async {
+    if (loading) return SignUpStatus.error;
     loading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final authProfile = await _authService.signUpWithEmail(
+      debugPrint('🔒 [AUTH] Sign-up with email started for $email');
+      final result = await _authService.signUpWithEmail(
         email: email,
         password: password,
         name: name,
       );
 
-      if (authProfile != null && _authService.currentUser != null) {
-        final uid = _authService.currentUser!.uid;
-        debugPrint('🔒 [Auth] signUpWithEmail success: uid=$uid');
+      if (result == null || _authService.currentUser == null) {
+        _error = 'Unable to create account. Please try again.';
+        loading = false;
+        notifyListeners();
+        return SignUpStatus.error;
+      }
 
-        // Always create a new Firestore profile for new users
+      final authProfile = result.profile;
+      final uid = _authService.currentUser!.uid;
+      debugPrint('🔒 [AUTH] Firebase account created successfully: uid=$uid');
+
+      // Post-Auth Firestore Profile Setup Stage
+      try {
         _user = await FirestoreService.instance.createProfileIfAbsent(
           uid: uid,
-          name: authProfile.name,
-          email: authProfile.email,
-          avatarUrl: authProfile.avatarUrl,
+          name: authProfile?.name ?? name,
+          email: authProfile?.email ?? email,
+          avatarUrl: authProfile?.avatarUrl ?? '',
         );
 
         if (context != null && context.mounted) {
@@ -254,16 +511,31 @@ class AuthController extends ChangeNotifier {
           healthData.setUserInfo(uid, _user!.name);
           healthData.loadProfile(_user!);
         }
+      } catch (postAuthError) {
+        debugPrint('⚠️ [AUTH] Post-auth Firestore error (account exists): $postAuthError');
+        _user = authProfile;
       }
 
       loading = false;
       notifyListeners();
-      return _user != null;
-    } catch (e) {
-      _error = e.toString();
+      return SignUpStatus.successNewUser;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        _error = 'An account with this email already exists. Please sign in instead.';
+        loading = false;
+        notifyListeners();
+        return SignUpStatus.accountAlreadyExists;
+      }
+      _error = _mapFirebaseAuthError(e);
       loading = false;
       notifyListeners();
-      return false;
+      return SignUpStatus.error;
+    } catch (e) {
+      debugPrint('🔴 [AUTH] Unexpected error in signUpWithEmail: $e');
+      _error = 'Unable to create account. Please try again.';
+      loading = false;
+      notifyListeners();
+      return SignUpStatus.error;
     }
   }
 

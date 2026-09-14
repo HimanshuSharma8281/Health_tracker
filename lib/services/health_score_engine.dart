@@ -23,6 +23,7 @@ class HealthScoreEngine {
     MetricKeys.water:         1.0,
     MetricKeys.calories:      1.0,
     MetricKeys.activity:      1.0,
+    MetricKeys.bloodSugar:    1.0,
   };
 
   // ════════════════════════════════════════════════════════════════════════
@@ -42,6 +43,7 @@ class HealthScoreEngine {
     int? waterMl,
     double? caloriesKcal,
     int? steps,
+    double? bloodSugarMgDl,
     Map<String, double>? weights,
   }) {
     final w = weights ?? _defaultWeights;
@@ -71,6 +73,9 @@ class HealthScoreEngine {
 
       MetricKeys.activity:
           calculateActivityScore(steps: steps, stepGoal: profile.stepGoal),
+
+      MetricKeys.bloodSugar:
+          calculateBloodSugarScore(mgDl: bloodSugarMgDl),
     };
 
     // Compute overall from available metrics only, applying weights.
@@ -456,6 +461,70 @@ class HealthScoreEngine {
     );
   }
 
+  /// Blood sugar score (fasting blood glucose in mg/dL).
+  ///
+  /// Reference: ADA clinical guidelines for glycemic targets:
+  ///   - 70–99 mg/dL: Normal / Optimal (Score 10)
+  ///   - 100 mg/dL: Normal fasting baseline (Score 10)
+  ///   - 101–115 mg/dL: Mildly elevated (Score 8)
+  ///   - 116–125 mg/dL: Elevated / Pre-diabetic range (Score 6)
+  ///   - 126–150 mg/dL: High (Score 4)
+  ///   - 151–180 mg/dL: Significantly elevated (Score 3)
+  ///   - >180 mg/dL: Very high (Score 1)
+  ///   - 60–69 mg/dL: Mildly low (Score 6)
+  ///   - 50–59 mg/dL: Low / Hypoglycemia risk (Score 3)
+  ///   - <50 mg/dL: Very low (Score 1)
+  static MetricScore calculateBloodSugarScore({double? mgDl}) {
+    if (mgDl == null || mgDl <= 0) {
+      return MetricScore.unavailable(MetricKeys.bloodSugar);
+    }
+
+    int score;
+    String reason;
+    final valStr = '${mgDl.toStringAsFixed(0)} mg/dL';
+
+    if (mgDl >= 70 && mgDl <= 99) {
+      score = 10;
+      reason = '$valStr — optimal fasting range (70–99 mg/dL)';
+    } else if (mgDl == 100) {
+      score = 10;
+      reason = '$valStr — normal fasting baseline';
+    } else if (mgDl > 100 && mgDl <= 115) {
+      score = 8;
+      reason = '$valStr — slightly elevated (101–115 mg/dL)';
+    } else if (mgDl > 115 && mgDl <= 125) {
+      score = 6;
+      reason = '$valStr — elevated (116–125 mg/dL)';
+    } else if (mgDl > 125 && mgDl <= 150) {
+      score = 4;
+      reason = '$valStr — high (>125 mg/dL)';
+    } else if (mgDl > 150 && mgDl <= 180) {
+      score = 3;
+      reason = '$valStr — significantly elevated (>150 mg/dL)';
+    } else if (mgDl > 180) {
+      score = 1;
+      reason = '$valStr — very high (≥180 mg/dL)';
+    } else if (mgDl >= 60) {
+      score = 6;
+      reason = '$valStr — mildly low (60–69 mg/dL)';
+    } else if (mgDl >= 50) {
+      score = 3;
+      reason = '$valStr — low (50–59 mg/dL)';
+    } else {
+      score = 1;
+      reason = '$valStr — very low (<50 mg/dL)';
+    }
+
+    return MetricScore(
+      metric: MetricKeys.bloodSugar,
+      score: score,
+      available: true,
+      reading: mgDl,
+      target: '70–100 mg/dL (fasting)',
+      reason: reason,
+    );
+  }
+
   // ════════════════════════════════════════════════════════════════════════
   // PRIVATE HELPERS
   // ════════════════════════════════════════════════════════════════════════
@@ -495,4 +564,5 @@ class MetricKeys {
   static const String water         = 'water';
   static const String calories      = 'calories';
   static const String activity      = 'activity';
+  static const String bloodSugar    = 'blood_sugar';
 }

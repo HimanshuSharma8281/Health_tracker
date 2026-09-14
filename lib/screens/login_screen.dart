@@ -79,8 +79,9 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
         );
-      } else if (success && auth.user != null) {
+      } else if (success && auth.user != null && mounted) {
         widget.onSignedIn(auth.user!);
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     }
   }
@@ -91,11 +92,11 @@ class _LoginScreenState extends State<LoginScreen>
     final success = await auth.signInWithGoogle(context: context);
     setState(() => _isLoading = false);
 
-    if (!success && mounted) {
+    if (!success && mounted && auth.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            auth.error ?? 'Google sign-in failed',
+            auth.error!,
             style: GoogleFonts.inter(color: Colors.white),
           ),
           backgroundColor: const Color(0xFFFF5C7A),
@@ -105,8 +106,9 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
       );
-    } else if (success && auth.user != null) {
+    } else if (success && auth.user != null && mounted) {
       widget.onSignedIn(auth.user!);
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
@@ -119,8 +121,8 @@ class _LoginScreenState extends State<LoginScreen>
 
       setState(() => _isLoading = false);
 
-      if (!success && mounted) {
-        final errorMsg = auth.error ?? 'Twitter sign-in failed';
+      if (!success && mounted && auth.error != null) {
+        final errorMsg = auth.error!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Column(
@@ -152,8 +154,9 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         );
         auth.clearError();
-      } else if (success && auth.user != null) {
+      } else if (success && auth.user != null && mounted) {
         widget.onSignedIn(auth.user!);
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       setState(() => _isLoading = false);

@@ -59,6 +59,7 @@ CRITICAL RULES:
             waterMl: data.waterMl > 0 ? data.waterMl : null,
             caloriesKcal: data.caloriesConsumed > 0 ? data.caloriesConsumed : null,
             steps: data.stepsToday > 0 ? data.stepsToday : null,
+            bloodSugarMgDl: data.bloodSugar > 0 ? data.bloodSugar : null,
           );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -97,6 +98,7 @@ CRITICAL RULES:
             waterMl: data.waterMl > 0 ? data.waterMl : null,
             caloriesKcal: data.caloriesConsumed > 0 ? data.caloriesConsumed : null,
             steps: data.stepsToday > 0 ? data.stepsToday : null,
+            bloodSugarMgDl: data.bloodSugar > 0 ? data.bloodSugar : null,
           );
 
     data.todayScore = score;

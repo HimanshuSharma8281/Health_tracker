@@ -504,6 +504,19 @@ class _DashboardTabState extends State<DashboardTab> {
                         : 0);
                 final bpScoreProg = (bpScore / 10.0).clamp(0.0, 1.0);
 
+                // 7. Blood Sugar — Canonical HealthScoreEngine metric score
+                final isSugarTracked = (metrics[MetricKeys.bloodSugar]?.available == true) ||
+                    (healthData.bloodSugar > 0);
+                final sugarScore = metrics[MetricKeys.bloodSugar]?.score ??
+                    metrics['blood_sugar']?.score ??
+                    metrics['bloodSugar']?.score ??
+                    (healthData.bloodSugar > 0
+                        ? HealthScoreEngine.calculateBloodSugarScore(
+                            mgDl: healthData.bloodSugar,
+                          ).score
+                        : 0);
+                final sugarScoreProg = (sugarScore / 10.0).clamp(0.0, 1.0);
+
                 final dashboardRings = [
                   MetricRingData(
                     key: 'steps',
@@ -552,6 +565,14 @@ class _DashboardTabState extends State<DashboardTab> {
                     score: bpScore,
                     color: const Color(0xFF48E5C2), // Mint Teal
                     isTracked: isBpTracked,
+                  ),
+                  MetricRingData(
+                    key: 'blood_sugar',
+                    label: 'Sugar',
+                    progress: sugarScoreProg,
+                    score: sugarScore,
+                    color: const Color(0xFFFF6B6B), // Coral Pink
+                    isTracked: isSugarTracked,
                   ),
                 ];
 
