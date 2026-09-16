@@ -706,7 +706,7 @@ class _AddBloodSugarScreenState extends State<AddBloodSugarScreen>
     double valueInMgDl = _isMmol ? _sliderValue * 18.0 : _sliderValue;
 
     Provider.of<HealthDataController>(context, listen: false)
-        .updateBloodSugar(valueInMgDl);
+        .updateBloodSugar(valueInMgDl, timestamp: _selectedDateTime);
 
     Navigator.pop(context);
 

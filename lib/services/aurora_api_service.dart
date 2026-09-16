@@ -32,8 +32,7 @@ class AuroraChatResult {
 }
 
 class AuroraApiService {
-  static const String _envHost =
-      String.fromEnvironment('AURORA_BACKEND_URL');
+  static const String _envHost = String.fromEnvironment('AURORA_BACKEND_URL');
 
   static const String productionBackendUrl =
       'https://aurora-ai-backend-vcmb.onrender.com';
@@ -116,9 +115,16 @@ class AuroraApiService {
         debugPrint('[AuroraAPI] BACKEND REQUEST SUCCESS');
 
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final responseText = (data['response'] ?? data['message'] ?? '').toString();
-        final tools = (data['tools_called'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
-        final sources = (data['sources'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+        final responseText =
+            (data['response'] ?? data['message'] ?? '').toString();
+        final tools = (data['tools_called'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [];
+        final sources = (data['sources'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [];
         final pendingAction = data['pending_action'] as Map<String, dynamic>?;
         final executedAction = data['executed_action'] as Map<String, dynamic>?;
 
@@ -137,7 +143,8 @@ class AuroraApiService {
         );
       } else {
         // Backend was reached but returned an error status code (e.g., 400, 500)
-        debugPrint('[AuroraAPI] Backend returned error status: ${response.statusCode}');
+        debugPrint(
+            '[AuroraAPI] Backend returned error status: ${response.statusCode}');
         String errorMsg = 'Unable to process health request at this moment.';
         try {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -207,7 +214,9 @@ class AuroraApiService {
         'confirmed': confirmed,
       });
 
-      final res = await http.post(uri, headers: headers, body: body).timeout(const Duration(seconds: 5));
+      final res = await http
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         return data['success'] == true;

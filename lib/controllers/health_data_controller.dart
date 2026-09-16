@@ -117,7 +117,7 @@ class HealthDataController extends ChangeNotifier {
         notifyListeners();
       };
     } catch (e) {
-      print('Error initializing step tracking: $e');
+      debugPrint('Error initializing step tracking: $e');
     }
   }
 
@@ -312,6 +312,7 @@ class HealthDataController extends ChangeNotifier {
       if (userId != loadingForUid) return;
 
       if (readings.isNotEmpty) {
+        final now = DateTime.now();
         final todayStr = HealthReading.todayDate();
 
         // 3a. Water: individual entries, daily history, and today's total
@@ -401,7 +402,7 @@ class HealthDataController extends ChangeNotifier {
           sleepHours = 0.0;
         }
 
-        // 3d. Heart Rate: history and latest bpm
+        // 3d. Heart Rate: history and today's bpm
         final hrReadings = readings.where((r) => r.metric == HealthReading.heartRate).toList();
         heartRateHistory.clear();
         if (hrReadings.isNotEmpty) {
@@ -412,12 +413,13 @@ class HealthDataController extends ChangeNotifier {
               timestamp: r.timestamp,
             ));
           }
-          heartRate = heartRateHistory.first.bpm;
+          final todayHr = hrReadings.where((r) => HealthReading.isReadingOnDate(r, now)).toList();
+          heartRate = todayHr.isNotEmpty ? todayHr.last.value : 0.0;
         } else {
           heartRate = 0.0;
         }
 
-        // 3e. Blood Pressure: history and latest systolic/diastolic
+        // 3e. Blood Pressure: history and today's systolic/diastolic
         final bpReadings = readings.where((r) => r.metric == HealthReading.bloodPressure).toList();
         bloodPressureHistory.clear();
         if (bpReadings.isNotEmpty) {
@@ -429,25 +431,33 @@ class HealthDataController extends ChangeNotifier {
               timestamp: r.timestamp,
             ));
           }
-          _systolic = bloodPressureHistory.first.systolic;
-          _diastolic = bloodPressureHistory.first.diastolic;
+          final todayBp = bpReadings.where((r) => HealthReading.isReadingOnDate(r, now)).toList();
+          if (todayBp.isNotEmpty) {
+            final latest = todayBp.last;
+            _systolic = latest.valueSystolic ?? latest.value.round();
+            _diastolic = latest.valueDiastolic ?? 80;
+          } else {
+            _systolic = 0;
+            _diastolic = 0;
+          }
         } else {
           _systolic = 0;
           _diastolic = 0;
         }
 
-        // 3f. Blood Sugar: history and latest value
+        // 3f. Blood Sugar: history and today's value
         final bsReadings = readings.where((r) => r.metric == HealthReading.bloodSugar).toList();
         bloodSugarHistory.clear();
         if (bsReadings.isNotEmpty) {
-          for (final r in bsReadings) {
+          for (final r in bsReadings.reversed) {
             bloodSugarHistory.add(BloodSugarReading(
               id: r.id,
               date: r.timestamp,
               value: r.value,
             ));
           }
-          bloodSugar = bloodSugarHistory.last.value;
+          final todayBs = bsReadings.where((r) => HealthReading.isReadingOnDate(r, now)).toList();
+          bloodSugar = todayBs.isNotEmpty ? todayBs.last.value : 0.0;
         } else {
           bloodSugar = 0.0;
         }
@@ -589,7 +599,7 @@ class HealthDataController extends ChangeNotifier {
       await prefs.setDouble('${prefix}current_sleep', sleepHours);
       await prefs.setDouble('${prefix}current_calories', caloriesConsumed);
     } catch (e) {
-      print('Error saving current data: $e');
+      debugPrint('Error saving current data: $e');
     }
   }
 
@@ -615,7 +625,7 @@ class HealthDataController extends ChangeNotifier {
       await prefs.setStringList('${prefix}sleep_history', sleepHistoryJson);
       await prefs.setStringList('${prefix}water_history', waterHistoryJson);
     } catch (e) {
-      print('Error saving history data: $e');
+      debugPrint('Error saving history data: $e');
     }
   }
 
@@ -804,6 +814,46 @@ class HealthDataController extends ChangeNotifier {
       PredictiveAnalytics.stepAndCalorieForecast(history);
   int get systolic => _systolic;
   int get diastolic => _diastolic;
+
+  double get latestHeartRate =>
+      heartRateHistory.isNotEmpty ? heartRateHistory.first.bpm : 0.0;
+  BloodPressureReading? get latestBloodPressure =>
+      bloodPressureHistory.isNotEmpty ? bloodPressureHistory.first : null;
+  double get latestBloodSugar =>
+      bloodSugarHistory.isNotEmpty ? bloodSugarHistory.first.value : 0.0;
+
+  bool isHeartRateTrackedForDay(DateTime day) {
+    return heartRateHistory.any((r) => HealthReading.isSameDay(r.timestamp, day));
+  }
+
+  double getHeartRateForDay(DateTime day) {
+    final list = heartRateHistory
+        .where((r) => HealthReading.isSameDay(r.timestamp, day))
+        .toList();
+    return list.isNotEmpty ? list.first.bpm : 0.0;
+  }
+
+  bool isBloodPressureTrackedForDay(DateTime day) {
+    return bloodPressureHistory.any((r) => HealthReading.isSameDay(r.timestamp, day));
+  }
+
+  BloodPressureReading? getBloodPressureForDay(DateTime day) {
+    final list = bloodPressureHistory
+        .where((r) => HealthReading.isSameDay(r.timestamp, day))
+        .toList();
+    return list.isNotEmpty ? list.first : null;
+  }
+
+  bool isBloodSugarTrackedForDay(DateTime day) {
+    return bloodSugarHistory.any((r) => HealthReading.isSameDay(r.date, day));
+  }
+
+  double getBloodSugarForDay(DateTime day) {
+    final list = bloodSugarHistory
+        .where((r) => HealthReading.isSameDay(r.date, day))
+        .toList();
+    return list.isNotEmpty ? list.first.value : 0.0;
+  }
 
   /// Called by AuthController after the Firestore profile is loaded.
   /// Triggers a score refresh so the dashboard shows an up-to-date score
@@ -1355,23 +1405,27 @@ class HealthDataController extends ChangeNotifier {
     debugPrint('✅ [HealthData] daily score refreshed: ${score.overall}/100 (${score.label}) with ${score.availableMetricCount} active metrics');
   }
 
-  void addBloodPressureReading(int systolic, int diastolic) {
+  void addBloodPressureReading(int systolic, int diastolic, {DateTime? timestamp}) {
     if (userId == null) return;
 
     final docId = FirestoreService.instance.newReadingId(userId!);
-    final now = DateTime.now();
+    final recordTime = timestamp ?? DateTime.now();
+    final dateStr = HealthReading.formatDate(recordTime);
 
-    _systolic = systolic;
-    _diastolic = diastolic;
+    if (HealthReading.isSameDay(recordTime, DateTime.now())) {
+      _systolic = systolic;
+      _diastolic = diastolic;
+    }
     bloodPressureHistory.insert(
         0,
         BloodPressureReading(
           id: docId,
           systolic: systolic,
           diastolic: diastolic,
-          timestamp: now,
+          timestamp: recordTime,
         ));
-    if (bloodPressureHistory.length > 30) bloodPressureHistory.removeLast();
+    bloodPressureHistory.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    if (bloodPressureHistory.length > 50) bloodPressureHistory.removeLast();
 
     // Write to Firestore with canonical docId
     _writeReading(HealthReading(
@@ -1379,8 +1433,8 @@ class HealthDataController extends ChangeNotifier {
       userId: userId!,
       metric: HealthReading.bloodPressure,
       value: systolic.toDouble(),
-      date: HealthReading.todayDate(),
-      timestamp: now,
+      date: dateStr,
+      timestamp: recordTime,
       valueSystolic: systolic,
       valueDiastolic: diastolic,
     ));
@@ -1393,9 +1447,12 @@ class HealthDataController extends ChangeNotifier {
     if (userId == null) return;
 
     bloodPressureHistory.remove(reading);
-    if (bloodPressureHistory.isNotEmpty) {
-      _systolic = bloodPressureHistory.first.systolic;
-      _diastolic = bloodPressureHistory.first.diastolic;
+    final todayBp = bloodPressureHistory
+        .where((r) => HealthReading.isSameDay(r.timestamp, DateTime.now()))
+        .toList();
+    if (todayBp.isNotEmpty) {
+      _systolic = todayBp.first.systolic;
+      _diastolic = todayBp.first.diastolic;
     } else {
       _systolic = 0;
       _diastolic = 0;
@@ -1437,20 +1494,20 @@ class HealthDataController extends ChangeNotifier {
 
   static DateTime getMonthlyStartDate([DateTime? referenceDate]) {
     final now = referenceDate ?? DateTime.now();
-    return DateTime(now.year, now.month, 1);
+    return startOfDay(now).subtract(const Duration(days: 29));
   }
 
   static DateTime getMonthlyEndDate([DateTime? referenceDate]) {
     final now = referenceDate ?? DateTime.now();
-    return DateTime(now.year, now.month + 1, 1);
+    return startOfTomorrow(now);
   }
 
   // ── Filtered Readings for Trends ────────────────────────────────────────
 
-  List<BloodPressureReading> getLastWeekBPReadings() {
+  List<BloodPressureReading> getLastWeekBPReadings([DateTime? referenceDate]) {
     if (bloodPressureHistory.isEmpty) return [];
-    final start = getWeeklyStartDate();
-    final end = getWeeklyEndDate();
+    final start = getWeeklyStartDate(referenceDate);
+    final end = getWeeklyEndDate(referenceDate);
     final list = bloodPressureHistory
         .where((r) => !r.timestamp.isBefore(start) && r.timestamp.isBefore(end))
         .toList();
@@ -1458,10 +1515,10 @@ class HealthDataController extends ChangeNotifier {
     return list;
   }
 
-  List<BloodPressureReading> getLastMonthBPReadings() {
+  List<BloodPressureReading> getLastMonthBPReadings([DateTime? referenceDate]) {
     if (bloodPressureHistory.isEmpty) return [];
-    final start = getMonthlyStartDate();
-    final end = getMonthlyEndDate();
+    final start = getMonthlyStartDate(referenceDate);
+    final end = getMonthlyEndDate(referenceDate);
     final list = bloodPressureHistory
         .where((r) => !r.timestamp.isBefore(start) && r.timestamp.isBefore(end))
         .toList();
@@ -1469,15 +1526,19 @@ class HealthDataController extends ChangeNotifier {
     return list;
   }
 
-  void updateBloodSugar(double value) {
+  void updateBloodSugar(double value, {DateTime? timestamp}) {
     if (userId == null) return;
 
     final docId = FirestoreService.instance.newReadingId(userId!);
-    final now = DateTime.now();
+    final recordTime = timestamp ?? DateTime.now();
+    final dateStr = HealthReading.formatDate(recordTime);
 
-    bloodSugar = value;
-    bloodSugarHistory
-        .add(BloodSugarReading(id: docId, date: now, value: value));
+    if (HealthReading.isSameDay(recordTime, DateTime.now())) {
+      bloodSugar = value;
+    }
+    bloodSugarHistory.add(BloodSugarReading(id: docId, date: recordTime, value: value));
+    bloodSugarHistory.sort((a, b) => b.date.compareTo(a.date));
+    if (bloodSugarHistory.length > 50) bloodSugarHistory.removeLast();
 
     // Write to Firestore with canonical docId
     _writeReading(HealthReading(
@@ -1485,8 +1546,8 @@ class HealthDataController extends ChangeNotifier {
       userId: userId!,
       metric: HealthReading.bloodSugar,
       value: value,
-      date: HealthReading.todayDate(),
-      timestamp: now,
+      date: dateStr,
+      timestamp: recordTime,
     ));
 
     _refreshDailyScore();
@@ -1497,7 +1558,10 @@ class HealthDataController extends ChangeNotifier {
     if (userId == null) return;
 
     bloodSugarHistory.remove(reading);
-    bloodSugar = bloodSugarHistory.isNotEmpty ? bloodSugarHistory.last.value : 0.0;
+    final todayBs = bloodSugarHistory
+        .where((r) => HealthReading.isSameDay(r.date, DateTime.now()))
+        .toList();
+    bloodSugar = todayBs.isNotEmpty ? todayBs.first.value : 0.0;
 
     if (reading.id.isNotEmpty) {
       FirestoreService.instance.deleteReading(userId!, reading.id).catchError((e) {
@@ -1519,21 +1583,26 @@ class HealthDataController extends ChangeNotifier {
   }
 
   /// Update heart rate and trigger score refresh.
-  void updateHeartRate(double bpm) {
+  void updateHeartRate(double bpm, {DateTime? timestamp}) {
     if (userId == null) return;
 
     final docId = FirestoreService.instance.newReadingId(userId!);
-    final now = DateTime.now();
+    final recordTime = timestamp ?? DateTime.now();
+    final dateStr = HealthReading.formatDate(recordTime);
 
-    heartRate = bpm;
+    if (HealthReading.isSameDay(recordTime, DateTime.now())) {
+      heartRate = bpm;
+    }
     heartRateHistory.insert(
       0,
       HeartRateReading(
         id: docId,
         bpm: bpm,
-        timestamp: now,
+        timestamp: recordTime,
       ),
     );
+    heartRateHistory.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    if (heartRateHistory.length > 50) heartRateHistory.removeLast();
 
     // Write to Firestore with canonical docId
     _writeReading(HealthReading(
@@ -1541,8 +1610,8 @@ class HealthDataController extends ChangeNotifier {
       userId: userId!,
       metric: HealthReading.heartRate,
       value: bpm,
-      date: HealthReading.todayDate(),
-      timestamp: now,
+      date: dateStr,
+      timestamp: recordTime,
     ));
 
     _refreshDailyScore();
@@ -1553,7 +1622,10 @@ class HealthDataController extends ChangeNotifier {
     if (userId == null) return;
 
     heartRateHistory.remove(reading);
-    heartRate = heartRateHistory.isNotEmpty ? heartRateHistory.first.bpm : 0.0;
+    final todayHr = heartRateHistory
+        .where((r) => HealthReading.isSameDay(r.timestamp, DateTime.now()))
+        .toList();
+    heartRate = todayHr.isNotEmpty ? todayHr.first.bpm : 0.0;
 
     if (reading.id.isNotEmpty) {
       FirestoreService.instance.deleteReading(userId!, reading.id).catchError((e) {
@@ -1574,10 +1646,10 @@ class HealthDataController extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<HeartRateReading> getLastWeekHeartRateReadings() {
+  List<HeartRateReading> getLastWeekHeartRateReadings([DateTime? referenceDate]) {
     if (heartRateHistory.isEmpty) return [];
-    final start = getWeeklyStartDate();
-    final end = getWeeklyEndDate();
+    final start = getWeeklyStartDate(referenceDate);
+    final end = getWeeklyEndDate(referenceDate);
     final list = heartRateHistory
         .where((r) => !r.timestamp.isBefore(start) && r.timestamp.isBefore(end))
         .toList();
@@ -1585,10 +1657,10 @@ class HealthDataController extends ChangeNotifier {
     return list;
   }
 
-  List<HeartRateReading> getLastMonthHeartRateReadings() {
+  List<HeartRateReading> getLastMonthHeartRateReadings([DateTime? referenceDate]) {
     if (heartRateHistory.isEmpty) return [];
-    final start = getMonthlyStartDate();
-    final end = getMonthlyEndDate();
+    final start = getMonthlyStartDate(referenceDate);
+    final end = getMonthlyEndDate(referenceDate);
     final list = heartRateHistory
         .where((r) => !r.timestamp.isBefore(start) && r.timestamp.isBefore(end))
         .toList();
@@ -1596,10 +1668,10 @@ class HealthDataController extends ChangeNotifier {
     return list;
   }
 
-  List<BloodSugarReading> getLastWeekReadings() {
+  List<BloodSugarReading> getLastWeekReadings([DateTime? referenceDate]) {
     if (bloodSugarHistory.isEmpty) return [];
-    final start = getWeeklyStartDate();
-    final end = getWeeklyEndDate();
+    final start = getWeeklyStartDate(referenceDate);
+    final end = getWeeklyEndDate(referenceDate);
     final list = bloodSugarHistory
         .where((r) => !r.date.isBefore(start) && r.date.isBefore(end))
         .toList();
@@ -1607,10 +1679,10 @@ class HealthDataController extends ChangeNotifier {
     return list;
   }
 
-  List<BloodSugarReading> getLastMonthReadings() {
+  List<BloodSugarReading> getLastMonthReadings([DateTime? referenceDate]) {
     if (bloodSugarHistory.isEmpty) return [];
-    final start = getMonthlyStartDate();
-    final end = getMonthlyEndDate();
+    final start = getMonthlyStartDate(referenceDate);
+    final end = getMonthlyEndDate(referenceDate);
     final list = bloodSugarHistory
         .where((r) => !r.date.isBefore(start) && r.date.isBefore(end))
         .toList();
