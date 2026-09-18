@@ -43,7 +43,7 @@ class WellnessApp extends StatelessWidget {
       child: Consumer<ThemeController>(
         builder: (context, themeController, _) {
           return MaterialApp(
-            title: 'Aurora Wellness',
+            title: 'Veyora',
             debugShowCheckedModeBanner: false,
             themeMode: themeController.themeMode,
             theme: ThemeController.lightTheme.copyWith(

@@ -17,6 +17,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_launcher_icons: ^0.14.4
+  flutter_markdown: ^0.7.7+1
   google_fonts: ^6.3.3
   google_generative_ai: ^0.4.0
   google_sign_in: ^6.1.6
@@ -36,9 +37,23 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-flutter_icons:
+flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/him.png"
+  image_path: "assets/veyora_logo.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/veyora_logo.png"
+    background_color: "#090D10"
+    theme_color: "#48E5C2"
+  windows:
+    generate: true
+    image_path: "assets/veyora_logo.png"
+
 flutter:
   uses-material-design: true
+  assets:
+    - assets/
+    - assets/veyora_logo.png
+

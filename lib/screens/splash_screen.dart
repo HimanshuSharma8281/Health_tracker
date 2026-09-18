@@ -133,47 +133,41 @@ class _SplashScreenState extends State<SplashScreen>
                                 ),
                               ),
 
-                              // Inner Glassmorphic Emblem
+                              // Inner Emblem with Veyora Logo
                               Container(
-                                width: 120,
-                                height: 120,
+                                width: 130,
+                                height: 130,
                                 decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: const LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      Color(0xFF1B242D),
-                                      Color(0xFF11171D),
-                                    ],
-                                  ),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.15),
-                                    width: 1.5,
-                                  ),
+                                  borderRadius: BorderRadius.circular(32),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.5),
+                                      color: const Color(0xFF48E5C2)
+                                          .withValues(alpha: 0.3),
+                                      blurRadius: 24,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.6),
                                       blurRadius: 20,
                                       offset: const Offset(0, 10),
                                     ),
                                   ],
                                 ),
-                                child: Center(
-                                  child: ShaderMask(
-                                    shaderCallback: (bounds) =>
-                                        const LinearGradient(
-                                      colors: [
-                                        Color(0xFF48E5C2),
-                                        Color(0xFF3A86FF),
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ).createShader(bounds),
-                                    child: const Icon(
-                                      Icons.favorite_rounded,
-                                      size: 58,
-                                      color: Colors.white,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(32),
+                                  child: Image.asset(
+                                    'assets/veyora_logo.png',
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        Container(
+                                      color: const Color(0xFF1B242D),
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.spa_rounded,
+                                          size: 58,
+                                          color: Color(0xFF48E5C2),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -191,21 +185,21 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Column(
                         children: [
                           Text(
-                            'AURORA WELLNESS',
+                            'VEYORA',
                             style: GoogleFonts.inter(
-                              fontSize: 26,
+                              fontSize: 28,
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
-                              letterSpacing: 3.0,
+                              letterSpacing: 4.0,
                             ),
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            'Your clinical wellness companion',
+                            'Your Personal Health Intelligence',
                             style: GoogleFonts.inter(
-                              fontSize: 14,
+                              fontSize: 13.5,
                               fontWeight: FontWeight.w500,
-                              color: Colors.white.withValues(alpha: 0.55),
+                              color: Colors.white.withValues(alpha: 0.7),
                               letterSpacing: 0.8,
                             ),
                           ),

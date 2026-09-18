@@ -8,6 +8,7 @@ import '../controllers/aurora_chat_controller.dart';
 import '../services/health_analysis_service.dart';
 import '../models/daily_score.dart';
 
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../widgets/glass_container.dart';
 
 class AIHealthInsightsScreen extends StatefulWidget {
@@ -1769,14 +1770,11 @@ class _AIHealthInsightsScreenState extends State<AIHealthInsightsScreen>
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    msg.text,
-                    style: GoogleFonts.inter(
-                      fontSize: 13.5,
-                      height: 1.5,
-                      color: Colors.white.withValues(alpha: 0.92),
-                      fontWeight: FontWeight.w400,
-                    ),
+                  MarkdownBody(
+                    data: msg.text,
+                    selectable: false,
+                    shrinkWrap: true,
+                    styleSheet: _buildMarkdownStyleSheet(context),
                   ),
                 ],
               ),
@@ -1784,6 +1782,121 @@ class _AIHealthInsightsScreenState extends State<AIHealthInsightsScreen>
           ),
         ],
       ),
+    );
+  }
+
+  MarkdownStyleSheet _buildMarkdownStyleSheet(BuildContext context) {
+    return MarkdownStyleSheet(
+      p: GoogleFonts.inter(
+        fontSize: 13.5,
+        height: 1.5,
+        color: Colors.white.withValues(alpha: 0.92),
+        fontWeight: FontWeight.w400,
+      ),
+      strong: GoogleFonts.inter(
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
+      ),
+      em: GoogleFonts.inter(
+        fontStyle: FontStyle.italic,
+        color: Colors.white.withValues(alpha: 0.88),
+      ),
+      h1: GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+        color: const Color(0xFF48E5C2),
+        height: 1.4,
+      ),
+      h2: GoogleFonts.inter(
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF48E5C2),
+        height: 1.4,
+      ),
+      h3: GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF48E5C2),
+        height: 1.35,
+      ),
+      h4: GoogleFonts.inter(
+        fontSize: 13.5,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF48E5C2),
+        height: 1.35,
+      ),
+      h5: GoogleFonts.inter(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF48E5C2),
+      ),
+      h6: GoogleFonts.inter(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF48E5C2),
+      ),
+      h1Padding: const EdgeInsets.only(top: 8, bottom: 4),
+      h2Padding: const EdgeInsets.only(top: 8, bottom: 4),
+      h3Padding: const EdgeInsets.only(top: 6, bottom: 3),
+      h4Padding: const EdgeInsets.only(top: 6, bottom: 2),
+      h5Padding: const EdgeInsets.only(top: 4, bottom: 2),
+      h6Padding: const EdgeInsets.only(top: 4, bottom: 2),
+      pPadding: EdgeInsets.zero,
+      listBullet: GoogleFonts.inter(
+        fontSize: 13.5,
+        color: const Color(0xFF48E5C2),
+        fontWeight: FontWeight.w700,
+      ),
+      listBulletPadding: const EdgeInsets.only(right: 6),
+      listIndent: 16.0,
+      blockSpacing: 8.0,
+      horizontalRuleDecoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: Colors.white.withValues(alpha: 0.15),
+            width: 1.0,
+          ),
+        ),
+      ),
+      blockquote: GoogleFonts.inter(
+        fontSize: 13,
+        fontStyle: FontStyle.italic,
+        color: Colors.white70,
+      ),
+      blockquoteDecoration: BoxDecoration(
+        color: const Color(0xFF1E293B).withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(4),
+        border: const Border(
+          left: BorderSide(color: Color(0xFF48E5C2), width: 3),
+        ),
+      ),
+      blockquotePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      code: GoogleFonts.jetBrainsMono(
+        fontSize: 12,
+        color: const Color(0xFF48E5C2),
+        backgroundColor: const Color(0xFF1E293B).withValues(alpha: 0.6),
+      ),
+      codeblockDecoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      codeblockPadding: const EdgeInsets.all(10),
+      tableHead: GoogleFonts.inter(
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF48E5C2),
+        fontSize: 12,
+      ),
+      tableBody: GoogleFonts.inter(
+        color: Colors.white.withValues(alpha: 0.9),
+        fontSize: 12,
+      ),
+      tableBorder: TableBorder.all(
+        color: Colors.white.withValues(alpha: 0.15),
+        width: 0.8,
+      ),
+      tableColumnWidth: const FlexColumnWidth(),
+      tableCellsPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
     );
   }
 

@@ -315,44 +315,28 @@ class _SignUpScreenState extends State<SignUpScreen>
     return Column(
       children: [
         Container(
-          width: 68,
-          height: 68,
+          width: 72,
+          height: 72,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF1C2731),
-                Color(0xFF11171E),
-              ],
-            ),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.15),
-              width: 1.5,
-            ),
+            borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFF48E5C2).withValues(alpha: 0.25),
-                blurRadius: 26,
-                spreadRadius: 3,
+                blurRadius: 22,
+                spreadRadius: 2,
               ),
             ],
           ),
-          child: Center(
-            child: ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [
-                  Color(0xFF48E5C2),
-                  Color(0xFF3A86FF),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ).createShader(bounds),
-              child: const Icon(
-                Icons.person_add_rounded,
-                size: 32,
-                color: Colors.white,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Image.asset(
+              'assets/veyora_logo.png',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: const Color(0xFF1C2731),
+                child: const Center(
+                  child: Icon(Icons.spa_rounded, size: 36, color: Color(0xFF48E5C2)),
+                ),
               ),
             ),
           ),

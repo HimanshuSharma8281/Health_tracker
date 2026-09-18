@@ -237,53 +237,37 @@ class _LoginScreenState extends State<LoginScreen>
     return Column(
       children: [
         Container(
-          width: 76,
-          height: 76,
+          width: 80,
+          height: 80,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF1C2731),
-                Color(0xFF11171E),
-              ],
-            ),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.15),
-              width: 1.5,
-            ),
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFF48E5C2).withValues(alpha: 0.25),
-                blurRadius: 30,
-                spreadRadius: 4,
+                blurRadius: 24,
+                spreadRadius: 2,
               ),
             ],
           ),
-          child: Center(
-            child: ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [
-                  Color(0xFF48E5C2),
-                  Color(0xFF3A86FF),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ).createShader(bounds),
-              child: const Icon(
-                Icons.favorite_rounded,
-                size: 38,
-                color: Colors.white,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Image.asset(
+              'assets/veyora_logo.png',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: const Color(0xFF1C2731),
+                child: const Center(
+                  child: Icon(Icons.spa_rounded, size: 40, color: Color(0xFF48E5C2)),
+                ),
               ),
             ),
           ),
         ),
         const SizedBox(height: 18),
         Text(
-          'Aurora Wellness',
+          'Veyora',
           style: GoogleFonts.inter(
-            fontSize: 26,
+            fontSize: 28,
             fontWeight: FontWeight.w900,
             color: Colors.white,
             letterSpacing: 1.2,

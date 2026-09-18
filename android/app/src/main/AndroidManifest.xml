@@ -14,7 +14,7 @@
     <uses-feature android:name="android.hardware.sensor.stepdetector" android:required="false"/>
     
     <application
-        android:label="tracker"
+        android:label="Veyora"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
