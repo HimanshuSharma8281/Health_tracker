@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import '../controllers/health_data_controller.dart';
+import '../widgets/camera_heart_rate_scanner.dart';
 import '../widgets/glass_container.dart';
 
 class HeartRateScreen extends StatefulWidget {
@@ -410,6 +411,23 @@ class _HeartRateScreenState extends State<HeartRateScreen>
                     ),
                     centerTitle: true,
                     actions: [
+                      IconButton(
+                        onPressed: () => CameraHeartRateScanner.show(context),
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF5C7A).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFFF5C7A).withValues(alpha: 0.4)),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            size: 18,
+                            color: Color(0xFFFF5C7A),
+                          ),
+                        ),
+                        tooltip: 'Camera Scan',
+                      ),
                       Padding(
                         padding: const EdgeInsets.only(right: 12),
                         child: IconButton(
@@ -417,17 +435,17 @@ class _HeartRateScreenState extends State<HeartRateScreen>
                           icon: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFF5C7A).withValues(alpha: 0.12),
+                              color: Colors.white.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFFF5C7A).withValues(alpha: 0.3)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                             ),
                             child: const Icon(
                               Icons.add_rounded,
                               size: 18,
-                              color: Color(0xFFFF5C7A),
+                              color: Colors.white,
                             ),
                           ),
-                          tooltip: 'Record BPM',
+                          tooltip: 'Manual Record',
                         ),
                       ),
                     ],
@@ -565,6 +583,31 @@ class _HeartRateScreenState extends State<HeartRateScreen>
                                   painter: _ScreenEcgPainter(
                                     color: const Color(0xFFFF5C7A),
                                     pulseProgress: _pulseController.value,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFFF5C7A),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  onPressed: () => CameraHeartRateScanner.show(context),
+                                  icon: const Icon(Icons.camera_alt_rounded, size: 20),
+                                  label: Text(
+                                    'Measure Heart Rate (Camera)',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.3,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1033,18 +1076,43 @@ class _HeartRateScreenState extends State<HeartRateScreen>
       );
     }
 
-    // Sort chronologically
-    final sorted = List<HeartRateReading>.from(readings)
-      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final isWeekly = _selectedFilter == 'Weekly';
+    final int totalDays = isWeekly ? 7 : 30;
+    final rangeStart = isWeekly
+        ? HealthDataController.getWeeklyStartDate()
+        : HealthDataController.getMonthlyStartDate();
 
-    final spots = sorted.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), entry.value.bpm);
-    }).toList();
+    final Map<int, List<double>> dayGroups = {};
+    for (final r in readings) {
+      final d = DateTime(r.timestamp.year, r.timestamp.month, r.timestamp.day);
+      final s = DateTime(rangeStart.year, rangeStart.month, rangeStart.day);
+      final offset = d.difference(s).inDays;
+      if (offset >= 0 && offset < totalDays) {
+        dayGroups.putIfAbsent(offset, () => []).add(r.bpm);
+      }
+    }
+
+    final spots = <FlSpot>[];
+    final sortedOffsets = dayGroups.keys.toList()..sort();
+    for (final offset in sortedOffsets) {
+      final list = dayGroups[offset]!;
+      final avgBpm = list.reduce((a, b) => a + b) / list.length;
+      spots.add(FlSpot(offset.toDouble(), avgBpm));
+    }
+
+    final values = readings.map((r) => r.bpm).toList();
+    final minValue = values.reduce((a, b) => a < b ? a : b);
+    final maxValue = values.reduce((a, b) => a > b ? a : b);
+    final double minY = (minValue - 15).clamp(30.0, 180.0).toDouble();
+    final double maxY = (maxValue + 20).clamp(minY + 30, 220.0).toDouble();
+    final double maxX = (totalDays - 1).toDouble();
 
     return LineChart(
       LineChartData(
-        minY: 40,
-        maxY: 160,
+        minY: minY,
+        maxY: maxY,
+        minX: 0,
+        maxX: maxX,
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
@@ -1078,11 +1146,11 @@ class _HeartRateScreenState extends State<HeartRateScreen>
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 22,
-              interval: sorted.length <= 7 ? 1.0 : math.max(1, (sorted.length / 4).floor()).toDouble(),
+              interval: isWeekly ? 1.0 : 5.0,
               getTitlesWidget: (val, _) {
                 final idx = val.toInt();
-                if (idx < 0 || idx >= sorted.length) return const SizedBox();
-                final date = sorted[idx].timestamp;
+                if (idx < 0 || idx >= totalDays) return const SizedBox();
+                final date = rangeStart.add(Duration(days: idx));
                 return Text(
                   DateFormat('MM/dd').format(date),
                   style: GoogleFonts.inter(
@@ -1126,6 +1194,29 @@ class _HeartRateScreenState extends State<HeartRateScreen>
             ),
           ),
         ],
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => const Color(0xFF141A20),
+            tooltipBorder: const BorderSide(
+              color: Color(0xFFFF5C7A),
+              width: 1,
+            ),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final offset = spot.x.toInt();
+                final date = rangeStart.add(Duration(days: offset));
+                return LineTooltipItem(
+                  '${spot.y.toInt()} BPM\n${DateFormat('MM/dd').format(date)}',
+                  GoogleFonts.inter(
+                    color: const Color(0xFFFF5C7A),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
       ),
     );
   }

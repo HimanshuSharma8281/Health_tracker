@@ -87,6 +87,8 @@ class HealthDataController extends ChangeNotifier {
   bool _isDataLoaded = false;
   bool _isLoadingData = false; // Guard against re-entrant setUserInfo calls
 
+  bool get isDataLoaded => _isDataLoaded;
+
   HealthDataController() {
     _lastResetDate = DateTime.now();
     _initializeStepTracking();
@@ -96,19 +98,19 @@ class HealthDataController extends ChangeNotifier {
   Future<void> _initializeStepTracking() async {
     try {
       final stepService = StepTrackingService.instance;
-      await stepService.initialize();
 
       stepService.onStepsUpdated = (steps) {
-        if (steps != stepsToday && userId != null) {
-          stepsToday = steps;
-          _updateTodayInHistory();
-          _saveCurrentData();
-
-          if (username != null) {
-            _updateSocialScore();
+        if (steps != stepsToday) {
+          if (userId != null) {
+            updateSteps(steps);
+          } else {
+            stepsToday = steps;
+            _updateTodayInStepHistory();
+            _updateTodayInHistory();
+            _saveCurrentData();
+            _refreshDailyScore();
+            notifyListeners();
           }
-
-          notifyListeners();
         }
       };
 
@@ -116,29 +118,33 @@ class HealthDataController extends ChangeNotifier {
         pedestrianStatus = status;
         notifyListeners();
       };
+
+      await stepService.initialize();
     } catch (e) {
       debugPrint('Error initializing step tracking: $e');
     }
   }
 
   // USER INFO METHODS - This is the key method that loads user-specific data
-  void setUserInfo(String id, String name) {
-    // Guard: same user already fully loaded → no-op
-    if (userId == id && _isDataLoaded) {
-      debugPrint('🔥 [HealthData] setUserInfo skipped – already loaded for uid=$id');
-      return;
+  void setUserInfo(String id, String name, {bool forceReload = false}) {
+    if (!forceReload) {
+      // Guard: same user already fully loaded → no-op
+      if (userId == id && _isDataLoaded) {
+        debugPrint('🔥 [HealthData] setUserInfo skipped – already loaded for uid=$id');
+        return;
+      }
+
+      // Guard: same user currently loading → no-op (prevents the race condition
+      // where Google Sign-In triggers 2-3 setUserInfo calls in rapid succession;
+      // the second/third call arrives while _isDataLoaded is still false because
+      // _loadUserData is async, causing _clearAllLocalData to wipe in-progress data)
+      if (userId == id && _isLoadingData) {
+        debugPrint('🔥 [HealthData] setUserInfo skipped – load already in progress for uid=$id');
+        return;
+      }
     }
 
-    // Guard: same user currently loading → no-op (prevents the race condition
-    // where Google Sign-In triggers 2-3 setUserInfo calls in rapid succession;
-    // the second/third call arrives while _isDataLoaded is still false because
-    // _loadUserData is async, causing _clearAllLocalData to wipe in-progress data)
-    if (userId == id && _isLoadingData) {
-      debugPrint('🔥 [HealthData] setUserInfo skipped – load already in progress for uid=$id');
-      return;
-    }
-
-    debugPrint('🔥 [HealthData] setUserInfo: uid=$id, name=$name (previous uid=$userId)');
+    debugPrint('🔥 [HealthData] setUserInfo: uid=$id, name=$name (previous uid=$userId, forceReload=$forceReload)');
 
     // Clear all data before loading new user
     _clearAllLocalData();
@@ -151,30 +157,17 @@ class HealthDataController extends ChangeNotifier {
     // Load user-specific data from SharedPreferences
     _loadUserData();
 
+    // Ensure step tracking is synced for this user
+    final currentSensorSteps = StepTrackingService.instance.todaySteps;
+    if (currentSensorSteps > 0 && currentSensorSteps > stepsToday) {
+      updateSteps(currentSensorSteps);
+    }
+
     notifyListeners();
   }
 
   void clearUserInfo() {
-    // Save current user's data before clearing
-    if (userId != null) {
-      debugPrint('🔥 [HealthData] clearUserInfo: saving data for uid=$userId');
-      _saveCurrentData();
-      _saveHistoryData();
-    }
-
-    // Clear everything
-    _clearAllLocalData();
-
-    userId = null;
-    username = null;
-    userScore = 0;
-    userRank = 0;
-    _todayScore = null;
-    _isDataLoaded = false;
-    _isLoadingData = false;
-
-    debugPrint('🔥 [HealthData] clearUserInfo: complete');
-    notifyListeners();
+    resetAllUserData(saveFirst: true);
   }
 
   // Clear ALL local data
@@ -191,6 +184,8 @@ class HealthDataController extends ChangeNotifier {
     _diastolic = 0;
     rewardPoints = 0;
     streakDays = 0;
+    lastFoodLabel = null;
+    lastFoodCalories = null;
 
     // Clear all lists
     stepHistory.clear();
@@ -206,6 +201,9 @@ class HealthDataController extends ChangeNotifier {
     history.clear();
     reminders.clear();
     challenges.clear();
+    leaderboard.clear();
+    _cachedInsights.clear();
+    _isLoadingInsights = false;
 
     // Reset goals to defaults
     stepGoal = 10000;
@@ -475,9 +473,12 @@ class HealthDataController extends ChangeNotifier {
             stepHistory.add(DailyStepRecord(date: d, steps: entry.value));
           }
           stepHistory.sort((a, b) => a.date.compareTo(b.date));
-          if (stepByDate.containsKey(todayStr)) {
-            stepsToday = stepByDate[todayStr]!;
-          }
+          final firestoreSteps = stepByDate[todayStr] ?? 0;
+          final sensorSteps = StepTrackingService.instance.todaySteps;
+          stepsToday = max(firestoreSteps, sensorSteps);
+        } else {
+          stepHistory.clear();
+          stepsToday = StepTrackingService.instance.todaySteps;
         }
 
         // 3h. Activity History across all recorded dates
@@ -876,34 +877,22 @@ class HealthDataController extends ChangeNotifier {
   }
 
   /// Completely wipes all health metrics, history, and user identity from memory.
-  void resetAllUserData() {
+  void resetAllUserData({bool saveFirst = false}) {
+    if (saveFirst && userId != null) {
+      debugPrint('🔥 [HealthData] resetAllUserData: saving data for uid=$userId');
+      _saveCurrentData();
+      _saveHistoryData();
+    }
+    _clearAllLocalData();
     profile = null;
     userId = null;
     username = null;
-    stepsToday = 0;
-    waterMl = 0;
-    sleepHours = 0;
-    caloriesConsumed = 0;
-    heartRate = 0;
-    _systolic = 0;
-    _diastolic = 0;
-    bloodSugar = 0;
     userScore = 0;
     userRank = 0;
     _todayScore = null;
-    bloodPressureHistory.clear();
-    bloodSugarHistory.clear();
-    sleepReadingHistory.clear();
-    waterIntakeHistory.clear();
-    heartRateHistory.clear();
-    stepHistory.clear();
-    sleepHistory.clear();
-    waterHistory.clear();
-    meals.clear();
-    mealHistory.clear();
-    history.clear();
     _isDataLoaded = false;
     _isLoadingData = false;
+    debugPrint('🔥 [HealthData] resetAllUserData: complete (saveFirst=$saveFirst)');
     notifyListeners();
   }
 
@@ -1183,12 +1172,38 @@ class HealthDataController extends ChangeNotifier {
     return waterIntakeHistory.where((r) => r.timestamp.isAfter(today)).toList();
   }
 
+  void _updateTodayInStepHistory() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final idx = stepHistory.indexWhere((r) {
+      final rd = DateTime(r.date.year, r.date.month, r.date.day);
+      return rd.isAtSameMomentAs(today);
+    });
+    if (idx != -1) {
+      if (stepsToday > 0) {
+        stepHistory[idx] = DailyStepRecord(date: stepHistory[idx].date, steps: stepsToday);
+      } else {
+        stepHistory.removeAt(idx);
+      }
+    } else if (stepsToday > 0) {
+      stepHistory.add(DailyStepRecord(date: today, steps: stepsToday));
+    }
+  }
+
   void updateSteps(int steps) {
-    if (userId == null) return;
+    if (userId == null) {
+      stepsToday = steps;
+      _updateTodayInStepHistory();
+      _updateTodayInHistory();
+      notifyListeners();
+      return;
+    }
 
     stepsToday = steps;
+    _updateTodayInStepHistory();
     _updateTodayInHistory();
     _saveCurrentData();
+    _saveHistoryData();
     _refreshDailyScore();
 
     if (steps > 0) {
@@ -1206,8 +1221,13 @@ class HealthDataController extends ChangeNotifier {
       );
     }
 
-    if (username != null) _updateSocialScore();
+    _updateSocialScore();
     notifyListeners();
+  }
+
+  /// Sync hardware step tracking when app resumes from background
+  void syncStepTrackingOnResume() {
+    StepTrackingService.instance.checkAndSyncOnResume();
   }
 
   void _updateTodayInHistory() {
@@ -1311,25 +1331,38 @@ class HealthDataController extends ChangeNotifier {
   }
 
   Future<void> _updateSocialScore() async {
-    if (userId == null || username == null) return;
-
+    if (userId == null) return;
     try {
+      String? authName;
+      try {
+        authName = FirebaseAuth.instance.currentUser?.displayName;
+      } catch (_) {}
+
+      final effectiveUsername = username ??
+          profile?.name ??
+          authName ??
+          'User';
+
       await SocialService.updateUserScore(
         userId: userId!,
-        username: username!,
+        username: effectiveUsername,
         steps: stepsToday,
         waterMl: waterMl,
         calories: caloriesConsumed,
         sleepHours: sleepHours,
       );
 
-      // Continuously sync real health data into active challenges
+      // Continuously sync real health data into active challenges across all metrics
       await SocialService.syncAllActiveChallengesForUser(
         userId: userId!,
         waterMl: waterMl,
         stepsToday: stepsToday,
         caloriesConsumed: caloriesConsumed.round(),
         sleepHours: sleepHours,
+        heartRate: heartRate > 0 ? heartRate.round() : null,
+        systolic: _systolic > 0 ? _systolic : null,
+        bloodSugar: bloodSugar > 0 ? bloodSugar.round() : null,
+        mindfulnessMinutes: mindfulnessMinutes > 0 ? mindfulnessMinutes : null,
       );
     } catch (e) {
       debugPrint('Error updating social score/challenges: $e');
@@ -1401,6 +1434,9 @@ class HealthDataController extends ChangeNotifier {
         debugPrint('🔥 [HealthData] _refreshDailyScore save ERROR: $e');
       }
     }
+
+    // Automatically synchronize challenge leaderboard scores
+    _updateSocialScore();
 
     debugPrint('✅ [HealthData] daily score refreshed: ${score.overall}/100 (${score.label}) with ${score.availableMetricCount} active metrics');
   }

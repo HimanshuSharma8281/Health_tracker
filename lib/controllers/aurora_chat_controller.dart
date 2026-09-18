@@ -57,6 +57,16 @@ class AuroraChatController extends ChangeNotifier {
   bool get isLoaded => _isLoaded;
   String? get currentUid => _currentUid;
 
+  /// Completely resets the in-memory chat state on account sign out or switch.
+  void reset() {
+    _messages.clear();
+    _conversationHistory.clear();
+    _currentUid = null;
+    _isLoaded = false;
+    _isTyping = false;
+    notifyListeners();
+  }
+
   /// Loads chat history from local SharedPreferences for the given user.
   Future<void> loadHistory(String? uid) async {
     final targetUid = (uid != null && uid.isNotEmpty) ? uid : 'guest';

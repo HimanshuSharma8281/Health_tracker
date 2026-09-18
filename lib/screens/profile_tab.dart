@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../controllers/health_data_controller.dart';
 import '../controllers/auth_controller.dart';
+import '../controllers/aurora_chat_controller.dart';
 import '../models/user_profile.dart';
 
 class ProfileTab extends StatelessWidget {
@@ -38,7 +39,9 @@ class ProfileTab extends StatelessWidget {
 
     if (confirmed == true && context.mounted) {
       final auth = Provider.of<AuthController>(context, listen: false);
-      await auth.signOut();
+      final health = Provider.of<HealthDataController>(context, listen: false);
+      final chat = Provider.of<AuroraChatController>(context, listen: false);
+      await auth.signOut(health, chat);
     }
   }
 
@@ -835,6 +838,7 @@ class _EditProfileModalState extends State<_EditProfileModal> {
   Widget _buildSexSelector() {
     return DropdownButtonFormField<String>(
       value: _selectedSex,
+      isExpanded: true,
       style: GoogleFonts.inter(
           color: Colors.black87, fontWeight: FontWeight.w600, fontSize: 14),
       decoration: InputDecoration(

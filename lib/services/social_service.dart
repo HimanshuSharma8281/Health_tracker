@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/health_reading.dart';
 
 class SocialService {
-  static final DatabaseReference _database = FirebaseDatabase.instance.ref();
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static DatabaseReference get _database => FirebaseDatabase.instance.ref();
+  static FirebaseFirestore get _firestore => FirebaseFirestore.instance;
   static const String _resetFlagKey = 'challenges_reset_20260912_v1';
 
   // Update user's daily score
@@ -229,16 +229,62 @@ class SocialService {
       'participants': FieldValue.arrayUnion([userId]),
       'participantNames.$userId': username,
       'progress.$userId': initialProgress,
-      'dailyProgress.$userId.$todayKey': initialProgress,
+      'dailyProgress.$userId': {todayKey: initialProgress},
       'joinedAt.$userId': FieldValue.serverTimestamp(),
       'lastUpdated.$userId': FieldValue.serverTimestamp(),
     });
     debugPrint('✅ [SocialService] User $userId ($username) joined challenge $challengeId with initialProgress=$initialProgress');
   }
 
+  /// Normalizes any metric name variant into canonical format.
+  static String normalizeMetricType(String metric) {
+    final m = metric.trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
+    switch (m) {
+      case 'step':
+      case 'steps':
+        return 'steps';
+      case 'water':
+      case 'water_intake':
+      case 'waterintake':
+      case 'water_ml':
+        return 'water';
+      case 'calorie':
+      case 'calories':
+      case 'calories_burned':
+      case 'diet':
+      case 'meals':
+        return 'calories';
+      case 'sleep':
+      case 'sleep_hours':
+      case 'sleep_duration':
+        return 'sleep';
+      case 'heart_rate':
+      case 'heartrate':
+      case 'heart':
+      case 'bpm':
+        return 'heart_rate';
+      case 'blood_pressure':
+      case 'bloodpressure':
+      case 'bp':
+      case 'systolic':
+        return 'blood_pressure';
+      case 'blood_sugar':
+      case 'bloodsugar':
+      case 'glucose':
+      case 'sugar':
+        return 'blood_sugar';
+      case 'mindfulness':
+      case 'meditation':
+        return 'mindfulness';
+      default:
+        return m;
+    }
+  }
+
   /// Synchronize real health readings for a user into all active challenges they participate in.
   ///
-  /// Continuously aggregates the user's daily total without overwriting historical days.
+  /// Continuously aggregates the user's daily total without overwriting historical days,
+  /// strictly bounded within the challenge's active date window.
   static Future<void> syncUserChallengeProgress({
     required String userId,
     required String metricType,
@@ -249,28 +295,49 @@ class SocialService {
 
     try {
       final dateKey = date ?? HealthReading.todayDate();
+      final targetMetric = normalizeMetricType(metricType);
 
       final snapshot = await _firestore
           .collection('challenges')
           .where('participants', arrayContains: userId)
           .where('isActive', isEqualTo: true)
-          .where('metricType', isEqualTo: metricType)
           .get();
 
       if (snapshot.docs.isEmpty) return;
 
       final batch = _firestore.batch();
       final now = DateTime.now();
+      bool hasUpdates = false;
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
+        final docMetric = normalizeMetricType(data['metricType']?.toString() ?? '');
+        if (docMetric != targetMetric) continue;
 
         // Check expiration
         final endDate = (data['endDate'] as Timestamp?)?.toDate();
         if (endDate != null && now.isAfter(endDate)) {
           batch.update(doc.reference, {'isActive': false});
+          hasUpdates = true;
           continue;
         }
+
+        // Check if owner has left
+        final creatorId = data['creatorId'] as String? ?? '';
+        final participants = List<String>.from(data['participants'] ?? []);
+        if (creatorId.isNotEmpty && !participants.contains(creatorId)) {
+          batch.update(doc.reference, {'isActive': false});
+          hasUpdates = true;
+          continue;
+        }
+
+        final startDate = (data['startDate'] as Timestamp?)?.toDate();
+        final startDay = startDate != null
+            ? DateTime(startDate.year, startDate.month, startDate.day)
+            : null;
+        final endDay = endDate != null
+            ? DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59)
+            : null;
 
         // Get user's daily progress map
         final dailyMapRaw = (data['dailyProgress'] as Map<String, dynamic>?)?[userId];
@@ -284,21 +351,45 @@ class SocialService {
         // Update today's total
         userDailyMap[dateKey] = todayTotal;
 
-        // Cumulative progress across all days recorded in this challenge
-        final cumulativeTotal = userDailyMap.values.fold<int>(0, (acc, val) => acc + val);
+        // Cumulative progress across all days within the challenge window
+        int cumulativeTotal = 0;
+        for (final entry in userDailyMap.entries) {
+          final entryDate = DateTime.tryParse(entry.key);
+          if (entryDate != null) {
+            final entryDay = DateTime(entryDate.year, entryDate.month, entryDate.day);
+            if (startDay != null && entryDay.isBefore(startDay)) continue;
+            if (endDay != null && entryDay.isAfter(endDay)) continue;
+          }
+          cumulativeTotal += entry.value;
+        }
 
         batch.update(doc.reference, {
           'progress.$userId': cumulativeTotal,
-          'dailyProgress.$userId.$dateKey': todayTotal,
+          'dailyProgress.$userId': userDailyMap,
           'lastUpdated.$userId': FieldValue.serverTimestamp(),
         });
+        hasUpdates = true;
       }
 
-      await batch.commit();
-      debugPrint('🏆 [SocialService] Synced $metricType progress for uid=$userId | today=$todayTotal ml/units');
+      if (hasUpdates) {
+        await batch.commit();
+        debugPrint('🏆 [SocialService] Synced $targetMetric progress for uid=$userId | today=$todayTotal units');
+      }
     } catch (e) {
       debugPrint('🔴 [SocialService] syncUserChallengeProgress ERROR for uid=$userId: $e');
     }
+  }
+
+  /// Real-time stream of a single challenge by ID.
+  static Stream<ChallengeData?> getChallengeStream(String challengeId) {
+    return _firestore
+        .collection('challenges')
+        .doc(challengeId)
+        .snapshots()
+        .map((snapshot) {
+      if (!snapshot.exists) return null;
+      return ChallengeData.fromFirestore(snapshot);
+    });
   }
 
   /// Batch sync all metrics for a user from controller state into active challenges.
@@ -308,34 +399,72 @@ class SocialService {
     required int stepsToday,
     required int caloriesConsumed,
     required double sleepHours,
+    int? heartRate,
+    int? systolic,
+    int? bloodSugar,
+    int? mindfulnessMinutes,
   }) async {
     if (userId.isEmpty) return;
 
     try {
-      await Future.wait([
+      final futures = <Future<void>>[
         syncUserChallengeProgress(userId: userId, metricType: 'water', todayTotal: waterMl),
         syncUserChallengeProgress(userId: userId, metricType: 'steps', todayTotal: stepsToday),
         syncUserChallengeProgress(userId: userId, metricType: 'calories', todayTotal: caloriesConsumed),
         syncUserChallengeProgress(userId: userId, metricType: 'sleep', todayTotal: sleepHours.round()),
-      ]);
+      ];
+      if (heartRate != null && heartRate > 0) {
+        futures.add(syncUserChallengeProgress(userId: userId, metricType: 'heart_rate', todayTotal: heartRate));
+      }
+      if (systolic != null && systolic > 0) {
+        futures.add(syncUserChallengeProgress(userId: userId, metricType: 'blood_pressure', todayTotal: systolic));
+      }
+      if (bloodSugar != null && bloodSugar > 0) {
+        futures.add(syncUserChallengeProgress(userId: userId, metricType: 'blood_sugar', todayTotal: bloodSugar));
+      }
+      if (mindfulnessMinutes != null && mindfulnessMinutes > 0) {
+        futures.add(syncUserChallengeProgress(userId: userId, metricType: 'mindfulness', todayTotal: mindfulnessMinutes));
+      }
+
+      await Future.wait(futures);
     } catch (e) {
       debugPrint('🔴 [SocialService] syncAllActiveChallengesForUser ERROR: $e');
     }
   }
 
-  /// Leave an existing challenge. Removes participant from list, names, and progress maps.
+  /// Leave an existing challenge. If owner leaves, terminates challenge canonical state.
   static Future<void> leaveChallenge({
     required String challengeId,
     required String userId,
   }) async {
     final docRef = _firestore.collection('challenges').doc(challengeId);
-    await docRef.update({
-      'participants': FieldValue.arrayRemove([userId]),
-      'participantNames.$userId': FieldValue.delete(),
-      'progress.$userId': FieldValue.delete(),
-      'dailyProgress.$userId': FieldValue.delete(),
-    });
-    debugPrint('🚪 [SocialService] User $userId left challenge $challengeId');
+    final doc = await docRef.get();
+    if (!doc.exists) return;
+
+    final data = doc.data() ?? {};
+    final creatorId = data['creatorId'] as String? ?? '';
+    final isOwner = creatorId == userId;
+
+    if (isOwner) {
+      // If owner/creator leaves, the competition is terminated/marked inactive and removed from Browse All
+      await docRef.update({
+        'isActive': false,
+        'terminatedAt': FieldValue.serverTimestamp(),
+        'participants': FieldValue.arrayRemove([userId]),
+        'participantNames.$userId': FieldValue.delete(),
+        'progress.$userId': FieldValue.delete(),
+        'dailyProgress.$userId': FieldValue.delete(),
+      });
+      debugPrint('🛑 [SocialService] Owner $userId left challenge $challengeId -> challenge terminated');
+    } else {
+      await docRef.update({
+        'participants': FieldValue.arrayRemove([userId]),
+        'participantNames.$userId': FieldValue.delete(),
+        'progress.$userId': FieldValue.delete(),
+        'dailyProgress.$userId': FieldValue.delete(),
+      });
+      debugPrint('🚪 [SocialService] User $userId left challenge $challengeId');
+    }
   }
 
   /// Real-time stream of all challenges joined by [userId].
@@ -395,6 +524,11 @@ class SocialService {
         .map((snapshot) {
       final challenges = snapshot.docs.map((doc) {
         return ChallengeData.fromFirestore(doc);
+      }).where((c) {
+        if (!c.isActive) return false;
+        if (c.isExpired) return false;
+        if (c.creatorId.isNotEmpty && !c.participants.contains(c.creatorId)) return false;
+        return true;
       }).toList();
 
       challenges.sort((a, b) => b.createdAt.compareTo(a.createdAt));

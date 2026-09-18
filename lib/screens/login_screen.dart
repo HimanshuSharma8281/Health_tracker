@@ -90,7 +90,9 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _isLoading = true);
     final auth = Provider.of<AuthController>(context, listen: false);
     final success = await auth.signInWithGoogle(context: context);
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
 
     if (!success && mounted && auth.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(

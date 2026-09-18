@@ -8,10 +8,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/health_data_controller.dart';
 import '../controllers/theme_controller.dart';
+import '../controllers/aurora_chat_controller.dart';
 import '../models/user_profile.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/notification_widget.dart';
 import '../utils/firebase_test.dart';
+import '../screens/health_report_screen.dart';
 
 class SettingsTab extends StatefulWidget {
   const SettingsTab({super.key});
@@ -852,7 +854,15 @@ class _SettingsTabState extends State<SettingsTab> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: GoogleFonts.inter(fontSize: 12, color: Colors.white54)),
-        Text(value, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+          ),
+        ),
       ],
     );
   }
@@ -901,8 +911,8 @@ class _SettingsTabState extends State<SettingsTab> {
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () {
-                      auth.signOut();
-                      data.clearProfile();
+                      final chat = Provider.of<AuroraChatController>(context, listen: false);
+                      auth.signOut(data, chat);
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
@@ -1566,6 +1576,28 @@ class _SettingsTabState extends State<SettingsTab> {
                           title: 'Cloud Synchronization',
                           subtitle: 'Verify Firebase & cloud backup connection',
                           onTap: () => _showFirebaseTestDialog(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Health Reports Card
+                    _buildSettingsSection(
+                      title: 'Health Reports',
+                      children: [
+                        _SettingsTile(
+                          icon: Icons.picture_as_pdf_rounded,
+                          iconColor: const Color(0xFFFF5C7A),
+                          title: 'Export Health PDF Report',
+                          subtitle: 'Generate printable medical/wellness report by date range',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const HealthReportScreen(),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

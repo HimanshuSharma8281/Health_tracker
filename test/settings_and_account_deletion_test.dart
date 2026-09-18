@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:tracker/controllers/auth_controller.dart';
 import 'package:tracker/controllers/health_data_controller.dart';
 import 'package:tracker/controllers/theme_controller.dart';
+import 'package:tracker/controllers/aurora_chat_controller.dart';
 import 'package:tracker/models/activity_models.dart';
 import 'package:tracker/models/user_profile.dart';
 import 'package:tracker/screens/settings_tab.dart';
@@ -35,7 +36,7 @@ class MockAuthController extends ChangeNotifier implements AuthController {
   }
 
   @override
-  Future<void> signOut() async {
+  Future<void> signOut([HealthDataController? healthData, AuroraChatController? chatController]) async {
     user = null;
     notifyListeners();
   }
@@ -145,6 +146,7 @@ void main() {
             ChangeNotifierProvider<AuthController>.value(value: mockAuth),
             ChangeNotifierProvider<HealthDataController>.value(value: healthController),
             ChangeNotifierProvider<ThemeController>.value(value: themeController),
+            ChangeNotifierProvider<AuroraChatController>(create: (_) => AuroraChatController()),
           ],
           child: const MaterialApp(
             home: SettingsTab(),
@@ -194,6 +196,7 @@ void main() {
             ChangeNotifierProvider<AuthController>.value(value: mockAuth),
             ChangeNotifierProvider<HealthDataController>.value(value: healthController),
             ChangeNotifierProvider<ThemeController>.value(value: themeController),
+            ChangeNotifierProvider<AuroraChatController>(create: (_) => AuroraChatController()),
           ],
           child: const MaterialApp(
             home: SettingsTab(),

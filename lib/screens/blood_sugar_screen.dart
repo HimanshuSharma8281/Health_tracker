@@ -374,7 +374,12 @@ class _BloodSugarScreenState extends State<BloodSugarScreen> {
   }
 
   Widget _buildBloodSugarChart(HealthDataController data) {
-    final readings = _selectedFilter == 'Weekly'
+    final isWeekly = _selectedFilter == 'Weekly';
+    final int totalDays = isWeekly ? 7 : 30;
+    final rangeStart = isWeekly
+        ? HealthDataController.getWeeklyStartDate()
+        : HealthDataController.getMonthlyStartDate();
+    final readings = isWeekly
         ? data.getLastWeekReadings()
         : data.getLastMonthReadings();
 
@@ -410,17 +415,30 @@ class _BloodSugarScreenState extends State<BloodSugarScreen> {
       );
     }
 
-    readings.sort((a, b) => a.date.compareTo(b.date));
+    final Map<int, List<double>> dayGroups = {};
+    for (final r in readings) {
+      final d = DateTime(r.date.year, r.date.month, r.date.day);
+      final s = DateTime(rangeStart.year, rangeStart.month, rangeStart.day);
+      final offset = d.difference(s).inDays;
+      if (offset >= 0 && offset < totalDays) {
+        dayGroups.putIfAbsent(offset, () => []).add(r.value);
+      }
+    }
 
-    final spots = readings.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), entry.value.value);
-    }).toList();
+    final spots = <FlSpot>[];
+    final sortedOffsets = dayGroups.keys.toList()..sort();
+    for (final offset in sortedOffsets) {
+      final vals = dayGroups[offset]!;
+      final avg = vals.reduce((a, b) => a + b) / vals.length;
+      spots.add(FlSpot(offset.toDouble(), avg));
+    }
 
     final values = readings.map((r) => r.value).toList();
     final minValue = values.reduce((a, b) => a < b ? a : b);
     final maxValue = values.reduce((a, b) => a > b ? a : b);
     final yMin = (minValue - 20).clamp(40.0, 200.0).toDouble();
     final yMax = (maxValue + 25).clamp(100.0, 280.0).toDouble();
+    final double maxX = (totalDays - 1).toDouble();
 
     return LineChart(
       LineChartData(
@@ -455,23 +473,35 @@ class _BloodSugarScreenState extends State<BloodSugarScreen> {
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              interval: readings.length <= 7 ? 1.0 : (readings.length / 5).ceilToDouble(),
+              interval: isWeekly ? 1.0 : 5.0,
               reservedSize: 26,
               getTitlesWidget: (value, meta) {
-                if (value.toInt() >= 0 && value.toInt() < readings.length) {
-                  final reading = readings[value.toInt()];
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      _getDayLabel(reading.date),
-                      style: GoogleFonts.inter(
-                        color: Colors.white.withValues(alpha: 0.4),
-                        fontSize: 9,
-                      ),
-                    ),
-                  );
+                final idx = value.toInt();
+                if (idx < 0 || idx >= totalDays) {
+                  return const SizedBox();
                 }
-                return const SizedBox();
+                final date = rangeStart.add(Duration(days: idx));
+                final now = DateTime.now();
+                final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+                String label;
+                if (isWeekly) {
+                  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                  label = isToday ? 'Today' : days[date.weekday - 1];
+                } else {
+                  label = '${date.month}/${date.day}';
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      color: isToday ? _sugarCoral : Colors.white.withValues(alpha: 0.4),
+                      fontSize: 9,
+                      fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                );
               },
             ),
           ),
@@ -480,7 +510,7 @@ class _BloodSugarScreenState extends State<BloodSugarScreen> {
         ),
         borderData: FlBorderData(show: false),
         minX: 0,
-        maxX: (readings.length - 1).toDouble().clamp(0.0, 50.0),
+        maxX: maxX,
         minY: yMin,
         maxY: yMax,
         lineBarsData: [
@@ -530,7 +560,7 @@ class _BloodSugarScreenState extends State<BloodSugarScreen> {
             LineChartBarData(
               spots: [
                 const FlSpot(0, 100),
-                FlSpot((readings.length - 1).toDouble().clamp(0.0, 50.0), 100),
+                FlSpot(maxX, 100),
               ],
               isCurved: false,
               color: const Color(0xFF2EC4B6).withValues(alpha: 0.3),
@@ -549,8 +579,8 @@ class _BloodSugarScreenState extends State<BloodSugarScreen> {
             getTooltipItems: (touchedSpots) {
               return touchedSpots.map((spot) {
                 if (spot.barIndex != 0) return null;
-                final index = spot.x.toInt();
-                final reading = readings[index];
+                final offset = spot.x.toInt();
+                final date = rangeStart.add(Duration(days: offset));
                 return LineTooltipItem(
                   '${spot.y.toInt()} mg/dL\n',
                   GoogleFonts.inter(
@@ -560,7 +590,7 @@ class _BloodSugarScreenState extends State<BloodSugarScreen> {
                   ),
                   children: [
                     TextSpan(
-                      text: _formatDate(reading.date),
+                      text: _formatDate(date),
                       style: GoogleFonts.inter(
                         color: Colors.white54,
                         fontSize: 10,

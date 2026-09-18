@@ -16,7 +16,7 @@ class FirestoreService {
   FirestoreService._();
   static final FirestoreService instance = FirestoreService._();
 
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   // ── Collection helpers ────────────────────────────────────────────────────
 
@@ -105,7 +105,13 @@ class FirestoreService {
   // ════════════════════════════════════════════════════════════════════════
 
   /// Generate a unique Firestore document ID client-side.
-  String newReadingId(String uid) => _readings(uid).doc().id;
+  String newReadingId(String uid) {
+    try {
+      return _readings(uid).doc().id;
+    } catch (_) {
+      return '${DateTime.now().millisecondsSinceEpoch}_${uid.hashCode.abs()}';
+    }
+  }
 
   /// Write a new health reading. Returns the Firestore document ID.
   Future<String?> addReading(HealthReading reading) async {
@@ -246,6 +252,34 @@ class FirestoreService {
     }
   }
 
+  /// Load ALL readings within an inclusive date range across all metrics.
+  Future<List<HealthReading>> getReadingsForDateRange({
+    required String uid,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final startOfDay = DateTime(startDate.year, startDate.month, startDate.day, 0, 0, 0);
+    final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
+    try {
+      final snap = await _readings(uid)
+          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+          .where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
+          .get();
+      final list = snap.docs
+          .map((d) => HealthReading.fromFirestore(d.id, d.data()))
+          .toList();
+      list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      debugPrint('✅ [Firestore] getReadingsForDateRange: loaded ${list.length} readings for uid=$uid between ${HealthReading.formatDate(startOfDay)} and ${HealthReading.formatDate(endOfDay)}');
+      return list;
+    } on FirebaseException catch (e) {
+      debugPrint('⚠️ [Firestore] getReadingsForDateRange fallback to in-memory filter: code=${e.code}');
+      final all = await getAllReadings(uid);
+      return all
+          .where((r) => !r.timestamp.isBefore(startOfDay) && !r.timestamp.isAfter(endOfDay))
+          .toList();
+    }
+  }
+
   /// Load ALL readings for today across all metrics (for scoring and display).
   Future<Map<String, List<HealthReading>>> getTodayReadings(String uid) async {
     try {
@@ -313,6 +347,29 @@ class FirestoreService {
           .toList();
     } on FirebaseException catch (e) {
       debugPrint('🔴 [Firestore] getRecentScores ERROR: code=${e.code}');
+      return [];
+    }
+  }
+
+  /// Load daily scores within an inclusive date range (startDate to endDate).
+  Future<List<DailyScore>> getScoresForDateRange({
+    required String uid,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final startStr = HealthReading.formatDate(startDate);
+    final endStr = HealthReading.formatDate(endDate);
+    try {
+      final snap = await _scores(uid)
+          .where('date', isGreaterThanOrEqualTo: startStr)
+          .where('date', isLessThanOrEqualTo: endStr)
+          .orderBy('date', descending: false)
+          .get();
+      return snap.docs
+          .map((d) => DailyScore.fromFirestore(d.data()))
+          .toList();
+    } on FirebaseException catch (e) {
+      debugPrint('🔴 [Firestore] getScoresForDateRange ERROR: code=${e.code}');
       return [];
     }
   }

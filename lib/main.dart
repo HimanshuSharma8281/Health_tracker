@@ -113,9 +113,11 @@ class _AppLifecycleManagerState extends State<AppLifecycleManager>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Check for daily reset when app comes to foreground
-      Provider.of<HealthDataController>(context, listen: false)
-          .checkDailyReset();
+      final healthController =
+          Provider.of<HealthDataController>(context, listen: false);
+      // Check for daily reset and sync hardware step tracking when app comes to foreground
+      healthController.checkDailyReset();
+      healthController.syncStepTrackingOnResume();
     }
   }
 
@@ -148,7 +150,8 @@ class _RootScreenState extends State<RootScreen> {
     // and calls _loadUserProfile() to rebuild the UserProfile. The
     // HealthDataController will be initialized when the user next interacts
     // with the app OR when the sign-in flow runs setUserInfo.
-    debugPrint('🟦 [RootScreen] initState – auth.user=${Provider.of<AuthController>(context, listen: false).user?.email}');
+    debugPrint(
+        '🟦 [RootScreen] initState – auth.user=${Provider.of<AuthController>(context, listen: false).user?.email}');
   }
 
   @override

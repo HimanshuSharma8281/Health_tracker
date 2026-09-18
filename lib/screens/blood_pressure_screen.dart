@@ -309,12 +309,14 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
                         size: 16,
                       ),
                       const SizedBox(width: 10),
-                      Text(
-                        'Standard Optimal: < 120 SYS / < 80 DIA mmHg',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white70,
+                      Expanded(
+                        child: Text(
+                          'Standard Optimal: < 120 SYS / < 80 DIA mmHg',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white70,
+                          ),
                         ),
                       ),
                     ],
@@ -813,18 +815,43 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
       );
     }
 
-    final sortedData = List<BloodPressureReading>.from(filteredData)
-      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final isWeekly = _selectedFilter == 'Weekly';
+    final int totalDays = isWeekly ? 7 : 30;
+    final rangeStart = isWeekly
+        ? HealthDataController.getWeeklyStartDate()
+        : HealthDataController.getMonthlyStartDate();
+
+    final Map<int, List<BloodPressureReading>> dayGroups = {};
+    for (final r in filteredData) {
+      final d = DateTime(r.timestamp.year, r.timestamp.month, r.timestamp.day);
+      final s = DateTime(rangeStart.year, rangeStart.month, rangeStart.day);
+      final offset = d.difference(s).inDays;
+      if (offset >= 0 && offset < totalDays) {
+        dayGroups.putIfAbsent(offset, () => []).add(r);
+      }
+    }
+
+    final sysSpots = <FlSpot>[];
+    final diaSpots = <FlSpot>[];
+    final sortedOffsets = dayGroups.keys.toList()..sort();
+    for (final offset in sortedOffsets) {
+      final list = dayGroups[offset]!;
+      final avgSys = (list.fold<int>(0, (s, r) => s + r.systolic) / list.length);
+      final avgDia = (list.fold<int>(0, (s, r) => s + r.diastolic) / list.length);
+      sysSpots.add(FlSpot(offset.toDouble(), avgSys));
+      diaSpots.add(FlSpot(offset.toDouble(), avgDia));
+    }
 
     final allValues = [
-      ...sortedData.map((r) => r.systolic),
-      ...sortedData.map((r) => r.diastolic),
+      ...filteredData.map((r) => r.systolic),
+      ...filteredData.map((r) => r.diastolic),
     ];
     final minValue = allValues.reduce((a, b) => a < b ? a : b);
     final maxValue = allValues.reduce((a, b) => a > b ? a : b);
 
-    double minY = (minValue - 10).toDouble().clamp(40.0, 200.0);
-    double maxY = (maxValue + 15).toDouble().clamp(minY + 30, 240.0);
+    final double minY = (minValue - 10).toDouble().clamp(40.0, 200.0);
+    final double maxY = (maxValue + 15).toDouble().clamp(minY + 30, 240.0);
+    final double maxX = (totalDays - 1).toDouble();
 
     return LineChart(
       LineChartData(
@@ -847,13 +874,13 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 26,
-              interval: sortedData.length <= 7 ? 1.0 : (sortedData.length / 5).ceilToDouble(),
+              interval: isWeekly ? 1.0 : 5.0,
               getTitlesWidget: (value, meta) {
-                final index = value.toInt();
-                if (index < 0 || index >= sortedData.length) {
+                final idx = value.toInt();
+                if (idx < 0 || idx >= totalDays) {
                   return const SizedBox();
                 }
-                final date = sortedData[index].timestamp;
+                final date = rangeStart.add(Duration(days: idx));
                 return Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
@@ -886,15 +913,13 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
         ),
         borderData: FlBorderData(show: false),
         minX: 0,
-        maxX: (sortedData.length - 1).toDouble().clamp(0.0, 50.0),
+        maxX: maxX,
         minY: minY,
         maxY: maxY,
         lineBarsData: [
           // Systolic line
           LineChartBarData(
-            spots: sortedData.asMap().entries.map((e) {
-              return FlSpot(e.key.toDouble(), e.value.systolic.toDouble());
-            }).toList(),
+            spots: sysSpots,
             isCurved: true,
             color: _sysColor,
             barWidth: 2.5,
@@ -917,9 +942,7 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
           ),
           // Diastolic line
           LineChartBarData(
-            spots: sortedData.asMap().entries.map((e) {
-              return FlSpot(e.key.toDouble(), e.value.diastolic.toDouble());
-            }).toList(),
+            spots: diaSpots,
             isCurved: true,
             color: _diaColor,
             barWidth: 2.5,
@@ -951,8 +974,10 @@ class _BloodPressureScreenState extends State<BloodPressureScreen>
             getTooltipItems: (touchedSpots) {
               return touchedSpots.map((spot) {
                 final isSys = spot.barIndex == 0;
+                final offset = spot.x.toInt();
+                final date = rangeStart.add(Duration(days: offset));
                 return LineTooltipItem(
-                  '${isSys ? 'SYS' : 'DIA'}: ${spot.y.toInt()} mmHg',
+                  '${isSys ? 'SYS' : 'DIA'}: ${spot.y.toInt()} mmHg\n${DateFormat('MM/dd').format(date)}',
                   GoogleFonts.inter(
                     color: isSys ? _sysColor : _diaColor,
                     fontWeight: FontWeight.w700,

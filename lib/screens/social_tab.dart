@@ -26,15 +26,29 @@ class _SocialTabState extends State<SocialTab>
   }
 
   int _getCurrentMetricInitialValue(String metric, HealthDataController data) {
-    switch (metric) {
+    switch (metric.toLowerCase().replaceAll('-', '_').replaceAll(' ', '_')) {
       case 'water':
+      case 'water_intake':
         return data.waterMl;
       case 'steps':
+      case 'step':
         return data.stepsToday;
       case 'calories':
+      case 'calorie':
         return data.caloriesConsumed.round();
       case 'sleep':
         return data.sleepHours.round();
+      case 'heart_rate':
+      case 'heartrate':
+        return data.heartRate.round();
+      case 'blood_pressure':
+      case 'bloodpressure':
+        return data.systolic;
+      case 'blood_sugar':
+      case 'bloodsugar':
+        return data.bloodSugar.round();
+      case 'mindfulness':
+        return data.mindfulnessMinutes;
       default:
         return 0;
     }
@@ -271,6 +285,7 @@ class _SocialTabState extends State<SocialTab>
                   // Metric Type
                   DropdownButtonFormField<String>(
                     value: selectedMetric,
+                    isExpanded: true,
                     dropdownColor: const Color(0xFF1B232C),
                     style: GoogleFonts.inter(color: Colors.white),
                     decoration: InputDecoration(
@@ -293,10 +308,10 @@ class _SocialTabState extends State<SocialTab>
                       ),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'steps', child: Text('Steps')),
-                      DropdownMenuItem(value: 'water', child: Text('Water (ml)')),
-                      DropdownMenuItem(value: 'calories', child: Text('Calories')),
-                      DropdownMenuItem(value: 'sleep', child: Text('Sleep (hours)')),
+                      DropdownMenuItem(value: 'steps', child: Text('Steps', overflow: TextOverflow.ellipsis)),
+                      DropdownMenuItem(value: 'water', child: Text('Water (ml)', overflow: TextOverflow.ellipsis)),
+                      DropdownMenuItem(value: 'calories', child: Text('Calories', overflow: TextOverflow.ellipsis)),
+                      DropdownMenuItem(value: 'sleep', child: Text('Sleep (hours)', overflow: TextOverflow.ellipsis)),
                     ],
                     onChanged: (value) {
                       if (value == null) return;
@@ -321,6 +336,7 @@ class _SocialTabState extends State<SocialTab>
                   // Ranking Type
                   DropdownButtonFormField<String>(
                     value: rankingType,
+                    isExpanded: true,
                     dropdownColor: const Color(0xFF1B232C),
                     style: GoogleFonts.inter(color: Colors.white),
                     decoration: InputDecoration(
@@ -345,11 +361,11 @@ class _SocialTabState extends State<SocialTab>
                     items: const [
                       DropdownMenuItem(
                         value: 'highest',
-                        child: Text('Highest (Maximum Achieved)'),
+                        child: Text('Highest (Maximum Achieved)', overflow: TextOverflow.ellipsis),
                       ),
                       DropdownMenuItem(
                         value: 'closestToTarget',
-                        child: Text('Closest to Target (Consistency)'),
+                        child: Text('Closest to Target (Consistency)', overflow: TextOverflow.ellipsis),
                       ),
                     ],
                     onChanged: (value) {
@@ -804,279 +820,299 @@ class _SocialTabState extends State<SocialTab>
   }
 
   void _showChallengeLeaderboard(
-      ChallengeData challenge, HealthDataController data) {
+      ChallengeData initialChallenge, HealthDataController data) {
+    if (data.userId != null) {
+      SocialService.syncAllActiveChallengesForUser(
+        userId: data.userId!,
+        waterMl: data.waterMl,
+        stepsToday: data.stepsToday,
+        caloriesConsumed: data.caloriesConsumed.round(),
+        sleepHours: data.sleepHours,
+        heartRate: data.heartRate > 0 ? data.heartRate.round() : null,
+        systolic: data.systolic > 0 ? data.systolic : null,
+        bloodSugar: data.bloodSugar > 0 ? data.bloodSugar.round() : null,
+        mindfulnessMinutes: data.mindfulnessMinutes > 0 ? data.mindfulnessMinutes : null,
+      );
+    }
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: GlassContainer(
-          blur: 24,
-          color: const Color(0xF2141A20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-          borderRadius: BorderRadius.circular(24),
-          padding: const EdgeInsets.all(22),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 580, maxWidth: 500),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Row(
+      builder: (context) => StreamBuilder<ChallengeData?>(
+        stream: SocialService.getChallengeStream(initialChallenge.id),
+        initialData: initialChallenge,
+        builder: (context, snapshot) {
+          final challenge = snapshot.data ?? initialChallenge;
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: GlassContainer(
+              blur: 24,
+              color: const Color(0xF2141A20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+              borderRadius: BorderRadius.circular(24),
+              padding: const EdgeInsets.all(22),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 580, maxWidth: 500),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFBE0B).withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFFFFBE0B).withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.leaderboard_rounded,
-                        color: Color(0xFFFFBE0B),
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Leaderboard',
-                            style: GoogleFonts.inter(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            challenge.title,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white70,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close_rounded, color: Colors.white54),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    'Target: ${challenge.targetValue} ${_getMetricUnit(challenge.metricType)} • ${challenge.rankingType == 'closestToTarget' ? 'Closest to Target' : 'Highest Value'}',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: const Color(0xFF48E5C2),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                // User standing summary if user is in challenge
-                if (data.userId != null &&
-                    challenge.participants.contains(data.userId))
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 14),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF48E5C2).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: const Color(0xFF48E5C2).withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    // Header
+                    Row(
                       children: [
-                        Text(
-                          'Your Standing',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF48E5C2),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFBE0B).withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFFFFBE0B).withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.leaderboard_rounded,
+                            color: Color(0xFFFFBE0B),
+                            size: 22,
                           ),
                         ),
-                        Text(
-                          'Rank #${challenge.getRank(data.userId!)} of ${challenge.participants.length}',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Leaderboard',
+                                style: GoogleFonts.inter(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                challenge.title,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white70,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close_rounded, color: Colors.white54),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 12),
 
-                // Leaderboard list
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: challenge.participants.length,
-                    itemBuilder: (context, index) {
-                      final sortedParticipants = challenge
-                          .getTopParticipants(challenge.participants.length);
-                      final participant = sortedParticipants[index];
-                      final rank = participant['rank'] as int? ?? (index + 1);
-                      final isCurrentUser = participant['userId'] == data.userId;
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'Target: ${challenge.targetValue} ${_getMetricUnit(challenge.metricType)} • ${challenge.rankingType == 'closestToTarget' ? 'Closest to Target' : 'Highest Value'}',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: const Color(0xFF48E5C2),
+                          fontWeight: FontWeight.w600,
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // User standing summary if user is in challenge
+                    if (data.userId != null &&
+                        challenge.participants.contains(data.userId))
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: isCurrentUser
-                              ? const Color(0xFF48E5C2).withValues(alpha: 0.12)
-                              : Colors.white.withValues(alpha: 0.04),
+                          color: const Color(0xFF48E5C2).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: isCurrentUser
-                                ? const Color(0xFF48E5C2).withValues(alpha: 0.4)
-                                : _getRankColor(rank).withValues(alpha: 0.25),
-                            width: isCurrentUser ? 1.5 : 1,
+                            color: const Color(0xFF48E5C2).withValues(alpha: 0.3),
                           ),
                         ),
                         child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Rank badge
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: _getRankColor(rank).withValues(alpha: 0.15),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: _getRankColor(rank).withValues(alpha: 0.4),
-                                ),
-                              ),
-                              child: Center(
-                                child: rank <= 3
-                                    ? Text(
-                                        _getRankEmoji(rank),
-                                        style: const TextStyle(fontSize: 18),
-                                      )
-                                    : Text(
-                                        '$rank',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w800,
-                                          color: _getRankColor(rank),
-                                        ),
-                                      ),
+                            Text(
+                              'Your Standing',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF48E5C2),
                               ),
                             ),
-                            const SizedBox(width: 12),
-
-                            // Name
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          participant['name'] ?? 'Unknown',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      if (isCurrentUser) ...[
-                                        const SizedBox(width: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF48E5C2)
-                                                .withValues(alpha: 0.25),
-                                            borderRadius:
-                                                BorderRadius.circular(6),
-                                          ),
-                                          child: Text(
-                                            'You',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w700,
-                                              color: const Color(0xFF48E5C2),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${((participant['progress'] as int) / challenge.targetValue * 100).toStringAsFixed(0)}% complete',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      color: Colors.white54,
-                                    ),
-                                  ),
-                                ],
+                            Text(
+                              'Rank #${challenge.getRank(data.userId!)} of ${challenge.participants.length}',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
                               ),
-                            ),
-
-                            // Progress
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '${participant['progress']}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: const Color(0xFF48E5C2),
-                                  ),
-                                ),
-                                Text(
-                                  _getMetricUnit(challenge.metricType),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white54,
-                                  ),
-                                ),
-                              ],
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
+                      ),
+
+                    // Leaderboard list
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: challenge.participants.length,
+                        itemBuilder: (context, index) {
+                          final sortedParticipants = challenge
+                              .getTopParticipants(challenge.participants.length);
+                          final participant = sortedParticipants[index];
+                          final rank = participant['rank'] as int? ?? (index + 1);
+                          final isCurrentUser = participant['userId'] == data.userId;
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isCurrentUser
+                                  ? const Color(0xFF48E5C2).withValues(alpha: 0.12)
+                                  : Colors.white.withValues(alpha: 0.04),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isCurrentUser
+                                    ? const Color(0xFF48E5C2).withValues(alpha: 0.4)
+                                    : _getRankColor(rank).withValues(alpha: 0.25),
+                                width: isCurrentUser ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                // Rank badge
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: _getRankColor(rank).withValues(alpha: 0.15),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: _getRankColor(rank).withValues(alpha: 0.4),
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: rank <= 3
+                                        ? Text(
+                                            _getRankEmoji(rank),
+                                            style: const TextStyle(fontSize: 18),
+                                          )
+                                        : Text(
+                                            '$rank',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w800,
+                                              color: _getRankColor(rank),
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+
+                                // Name
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              participant['name'] ?? 'Unknown',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (isCurrentUser) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF48E5C2)
+                                                    .withValues(alpha: 0.25),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                'You',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: const Color(0xFF48E5C2),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${((participant['progress'] as int) / challenge.targetValue * 100).toStringAsFixed(0)}% complete',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: Colors.white54,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Progress
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      '${participant['progress']}',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFF48E5C2),
+                                      ),
+                                    ),
+                                    Text(
+                                      _getMetricUnit(challenge.metricType),
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white54,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -2006,15 +2042,29 @@ class _SocialTabState extends State<SocialTab>
   }
 
   String _getMetricUnit(String metricType) {
-    switch (metricType) {
+    switch (metricType.toLowerCase().replaceAll('-', '_').replaceAll(' ', '_')) {
       case 'steps':
+      case 'step':
         return 'steps/day';
       case 'water':
+      case 'water_intake':
         return 'ml/day';
       case 'calories':
+      case 'calorie':
         return 'kcal/day';
       case 'sleep':
         return 'hours/day';
+      case 'heart_rate':
+      case 'heartrate':
+        return 'bpm';
+      case 'blood_pressure':
+      case 'bloodpressure':
+        return 'mmHg';
+      case 'blood_sugar':
+      case 'bloodsugar':
+        return 'mg/dL';
+      case 'mindfulness':
+        return 'mins/day';
       default:
         return '';
     }
@@ -2022,30 +2072,58 @@ class _SocialTabState extends State<SocialTab>
 
   String _getCurrentMetricDisplay(
       String metricType, HealthDataController data) {
-    switch (metricType) {
+    switch (metricType.toLowerCase().replaceAll('-', '_').replaceAll(' ', '_')) {
       case 'steps':
+      case 'step':
         return '${data.stepsToday} steps';
       case 'water':
+      case 'water_intake':
         return '${data.waterMl} ml';
       case 'calories':
+      case 'calorie':
         return '${data.caloriesConsumed.toInt()} kcal';
       case 'sleep':
         return '${data.sleepHours.toStringAsFixed(1)} h';
+      case 'heart_rate':
+      case 'heartrate':
+        return '${data.heartRate.toInt()} bpm';
+      case 'blood_pressure':
+      case 'bloodpressure':
+        return data.systolic > 0 ? '${data.systolic}/${data.diastolic} mmHg' : '—';
+      case 'blood_sugar':
+      case 'bloodsugar':
+        return '${data.bloodSugar.toInt()} mg/dL';
+      case 'mindfulness':
+        return '${data.mindfulnessMinutes} min';
       default:
         return '0';
     }
   }
 
   IconData _getMetricIcon(String metricType) {
-    switch (metricType) {
+    switch (metricType.toLowerCase().replaceAll('-', '_').replaceAll(' ', '_')) {
       case 'steps':
+      case 'step':
         return Icons.directions_walk_rounded;
       case 'water':
+      case 'water_intake':
         return Icons.water_drop_rounded;
       case 'calories':
+      case 'calorie':
         return Icons.local_fire_department_rounded;
       case 'sleep':
         return Icons.nightlight_round;
+      case 'heart_rate':
+      case 'heartrate':
+        return Icons.favorite_rounded;
+      case 'blood_pressure':
+      case 'bloodpressure':
+        return Icons.speed_rounded;
+      case 'blood_sugar':
+      case 'bloodsugar':
+        return Icons.water_drop_outlined;
+      case 'mindfulness':
+        return Icons.self_improvement_rounded;
       default:
         return Icons.show_chart_rounded;
     }

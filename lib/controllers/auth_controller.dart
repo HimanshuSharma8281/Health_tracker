@@ -5,6 +5,7 @@ import '../services/firebase_auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/social_service.dart';
 import '../controllers/health_data_controller.dart';
+import '../controllers/aurora_chat_controller.dart';
 import 'package:provider/provider.dart';
 
 enum SignUpStatus {
@@ -168,8 +169,12 @@ class AuthController extends ChangeNotifier {
           if (context != null && context.mounted) {
             final healthData =
                 Provider.of<HealthDataController>(context, listen: false);
-            healthData.setUserInfo(uid, _user!.name);
+            healthData.setUserInfo(uid, _user!.name, forceReload: true);
             healthData.loadProfile(_user!);
+            try {
+              final chat = Provider.of<AuroraChatController>(context, listen: false);
+              chat.loadHistory(uid);
+            } catch (_) {}
           }
         } catch (e) {
           debugPrint('⚠️ [AUTH] Post-auth profile sync error: $e');
@@ -231,8 +236,12 @@ class AuthController extends ChangeNotifier {
           if (context != null && context.mounted) {
             final healthData =
                 Provider.of<HealthDataController>(context, listen: false);
-            healthData.setUserInfo(uid, _user!.name);
+            healthData.setUserInfo(uid, _user!.name, forceReload: true);
             healthData.loadProfile(_user!);
+            try {
+              final chat = Provider.of<AuroraChatController>(context, listen: false);
+              chat.loadHistory(uid);
+            } catch (_) {}
           }
         } catch (e) {
           debugPrint('⚠️ [AUTH] Post-auth profile sync error: $e');
@@ -293,8 +302,12 @@ class AuthController extends ChangeNotifier {
           if (context != null && context.mounted) {
             final healthData =
                 Provider.of<HealthDataController>(context, listen: false);
-            healthData.setUserInfo(uid, _user!.name);
+            healthData.setUserInfo(uid, _user!.name, forceReload: true);
             healthData.loadProfile(_user!);
+            try {
+              final chat = Provider.of<AuroraChatController>(context, listen: false);
+              chat.loadHistory(uid);
+            } catch (_) {}
           }
         } catch (e) {
           debugPrint('⚠️ [AUTH] Post-auth profile sync error: $e');
@@ -345,6 +358,16 @@ class AuthController extends ChangeNotifier {
       if (!result.isNewUser) {
         debugPrint('⚠️ [AUTH] Existing Google user attempted signup: uid=${result.profile?.uid}');
         _error = 'Account already exists. Please sign in instead.';
+        if (context != null && context.mounted) {
+          try {
+            final healthData = Provider.of<HealthDataController>(context, listen: false);
+            healthData.resetAllUserData(saveFirst: false);
+          } catch (_) {}
+          try {
+            final chatData = Provider.of<AuroraChatController>(context, listen: false);
+            chatData.reset();
+          } catch (_) {}
+        }
         await _authService.signOut();
         _user = null;
         loading = false;
@@ -367,8 +390,12 @@ class AuthController extends ChangeNotifier {
           if (context != null && context.mounted) {
             final healthData =
                 Provider.of<HealthDataController>(context, listen: false);
-            healthData.setUserInfo(uid, _user!.name);
+            healthData.setUserInfo(uid, _user!.name, forceReload: true);
             healthData.loadProfile(_user!);
+            try {
+              final chat = Provider.of<AuroraChatController>(context, listen: false);
+              chat.loadHistory(uid);
+            } catch (_) {}
           }
         } catch (e) {
           debugPrint('⚠️ [AUTH] Post-auth profile sync error: $e');
@@ -417,6 +444,16 @@ class AuthController extends ChangeNotifier {
       if (!result.isNewUser) {
         debugPrint('⚠️ [AUTH] Existing Twitter user attempted signup: uid=${result.profile?.uid}');
         _error = 'Account already exists. Please sign in instead.';
+        if (context != null && context.mounted) {
+          try {
+            final healthData = Provider.of<HealthDataController>(context, listen: false);
+            healthData.resetAllUserData(saveFirst: false);
+          } catch (_) {}
+          try {
+            final chatData = Provider.of<AuroraChatController>(context, listen: false);
+            chatData.reset();
+          } catch (_) {}
+        }
         await _authService.signOut();
         _user = null;
         loading = false;
@@ -439,8 +476,12 @@ class AuthController extends ChangeNotifier {
           if (context != null && context.mounted) {
             final healthData =
                 Provider.of<HealthDataController>(context, listen: false);
-            healthData.setUserInfo(uid, _user!.name);
+            healthData.setUserInfo(uid, _user!.name, forceReload: true);
             healthData.loadProfile(_user!);
+            try {
+              final chat = Provider.of<AuroraChatController>(context, listen: false);
+              chat.loadHistory(uid);
+            } catch (_) {}
           }
         } catch (e) {
           debugPrint('⚠️ [AUTH] Post-auth profile sync error: $e');
@@ -508,8 +549,12 @@ class AuthController extends ChangeNotifier {
         if (context != null && context.mounted) {
           final healthData =
               Provider.of<HealthDataController>(context, listen: false);
-          healthData.setUserInfo(uid, _user!.name);
+          healthData.setUserInfo(uid, _user!.name, forceReload: true);
           healthData.loadProfile(_user!);
+          try {
+            final chat = Provider.of<AuroraChatController>(context, listen: false);
+            chat.loadHistory(uid);
+          } catch (_) {}
         }
       } catch (postAuthError) {
         debugPrint('⚠️ [AUTH] Post-auth Firestore error (account exists): $postAuthError');
@@ -542,9 +587,15 @@ class AuthController extends ChangeNotifier {
   // ── Other auth methods ────────────────────────────────────────────────────
 
   /// Sign out.
-  Future<void> signOut() async {
+  Future<void> signOut([HealthDataController? healthData, AuroraChatController? chatController]) async {
     debugPrint('🔒 [Auth] signOut called for uid=${_authService.currentUser?.uid}');
     try {
+      if (healthData != null) {
+        healthData.resetAllUserData(saveFirst: true);
+      }
+      if (chatController != null) {
+        chatController.reset();
+      }
       await _authService.signOut();
       _user = null;
       notifyListeners();
@@ -704,12 +755,16 @@ class AuthController extends ChangeNotifier {
       healthData.loadProfile(_user!);
     }
 
-    if (healthData.userId == uid) {
+    if (healthData.userId == uid && healthData.isDataLoaded) {
       debugPrint('🔒 [Auth] initializeHealthDataIfNeeded: already initialized for uid=$uid');
       return;
     }
 
     debugPrint('🔒 [Auth] initializeHealthDataIfNeeded: initializing for returning user uid=$uid');
-    healthData.setUserInfo(uid, _user!.name);
+    healthData.setUserInfo(uid, _user!.name, forceReload: true);
+    try {
+      final chat = Provider.of<AuroraChatController>(context, listen: false);
+      chat.loadHistory(uid);
+    } catch (_) {}
   }
 }

@@ -208,27 +208,82 @@ void main() {
 
       expect(weekStart, DateTime(2027, 4, 9, 0, 0));
       expect(weekEnd, DateTime(2027, 4, 16, 0, 0));
-      expect(monthStart, DateTime(2027, 4, 1, 0, 0));
-      expect(monthEnd, DateTime(2027, 5, 1, 0, 0));
+      expect(monthStart, DateTime(2027, 3, 17, 0, 0));
+      expect(monthEnd, DateTime(2027, 4, 16, 0, 0));
     });
 
-    test('TEST 15: Filtered readings are sorted chronologically (oldest to newest)', () {
-      final d1 = today.subtract(const Duration(days: 3));
-      final d2 = today.subtract(const Duration(days: 1));
-      final d3 = today;
+    test('MANDATORY TEST MATRIX: Blood Sugar (Sep 1, 5, 10, 13, 16, 18 with ref date Sep 18)', () {
+      final refDate = DateTime(2026, 9, 18, 15, 0);
 
-      // Insert in reverse or random order
-      controller.bloodPressureHistory.addAll([
-        BloodPressureReading(id: '3', systolic: 130, diastolic: 85, timestamp: d3),
-        BloodPressureReading(id: '1', systolic: 115, diastolic: 75, timestamp: d1),
-        BloodPressureReading(id: '2', systolic: 120, diastolic: 80, timestamp: d2),
-      ]);
+      final rSep1 = BloodSugarReading(id: 'bs_sep1', date: DateTime(2026, 9, 1, 10, 0), value: 90.0);
+      final rSep5 = BloodSugarReading(id: 'bs_sep5', date: DateTime(2026, 9, 5, 10, 0), value: 95.0);
+      final rSep10 = BloodSugarReading(id: 'bs_sep10', date: DateTime(2026, 9, 10, 10, 0), value: 110.0);
+      final rSep13 = BloodSugarReading(id: 'bs_sep13', date: DateTime(2026, 9, 13, 10, 0), value: 150.0);
+      final rSep16 = BloodSugarReading(id: 'bs_sep16', date: DateTime(2026, 9, 16, 10, 0), value: 60.0);
+      final rSep18 = BloodSugarReading(id: 'bs_sep18', date: DateTime(2026, 9, 18, 10, 0), value: 79.0);
 
-      final sorted = controller.getLastWeekBPReadings();
-      expect(sorted.length, 3);
-      expect(sorted[0].id, '1');
-      expect(sorted[1].id, '2');
-      expect(sorted[2].id, '3');
+      controller.bloodSugarHistory.addAll([rSep1, rSep5, rSep10, rSep13, rSep16, rSep18]);
+
+      final weekly = controller.getLastWeekReadings(refDate);
+      final monthly = controller.getLastMonthReadings(refDate);
+
+      // Weekly: Sep 12 00:00 to Sep 19 00:00 -> includes Sep 13, 16, 18 (3 records)
+      expect(weekly.length, 3);
+      expect(weekly.map((r) => r.id).toList(), ['bs_sep13', 'bs_sep16', 'bs_sep18']);
+      expect(weekly.map((r) => r.value).toList(), [150.0, 60.0, 79.0]);
+
+      // Monthly: Aug 20 00:00 to Sep 19 00:00 -> includes all 6 records
+      expect(monthly.length, 6);
+      expect(monthly.map((r) => r.id).toList(), ['bs_sep1', 'bs_sep5', 'bs_sep10', 'bs_sep13', 'bs_sep16', 'bs_sep18']);
+      expect(monthly.map((r) => r.value).toList(), [90.0, 95.0, 110.0, 150.0, 60.0, 79.0]);
+    });
+
+    test('MANDATORY TEST MATRIX: Blood Pressure (Sep 1, 5, 10, 13, 16, 18 with ref date Sep 18)', () {
+      final refDate = DateTime(2026, 9, 18, 15, 0);
+
+      final rSep1 = BloodPressureReading(id: 'bp_sep1', timestamp: DateTime(2026, 9, 1, 10, 0), systolic: 118, diastolic: 78);
+      final rSep5 = BloodPressureReading(id: 'bp_sep5', timestamp: DateTime(2026, 9, 5, 10, 0), systolic: 122, diastolic: 80);
+      final rSep10 = BloodPressureReading(id: 'bp_sep10', timestamp: DateTime(2026, 9, 10, 10, 0), systolic: 125, diastolic: 82);
+      final rSep13 = BloodPressureReading(id: 'bp_sep13', timestamp: DateTime(2026, 9, 13, 10, 0), systolic: 140, diastolic: 80);
+      final rSep16 = BloodPressureReading(id: 'bp_sep16', timestamp: DateTime(2026, 9, 16, 10, 0), systolic: 150, diastolic: 80);
+      final rSep18 = BloodPressureReading(id: 'bp_sep18', timestamp: DateTime(2026, 9, 18, 10, 0), systolic: 130, diastolic: 85);
+
+      controller.bloodPressureHistory.addAll([rSep1, rSep5, rSep10, rSep13, rSep16, rSep18]);
+
+      final weekly = controller.getLastWeekBPReadings(refDate);
+      final monthly = controller.getLastMonthBPReadings(refDate);
+
+      // Weekly: Sep 13, 16, 18 (3 records)
+      expect(weekly.length, 3);
+      expect(weekly.map((r) => r.id).toList(), ['bp_sep13', 'bp_sep16', 'bp_sep18']);
+
+      // Monthly: all 6 records
+      expect(monthly.length, 6);
+      expect(monthly.map((r) => r.id).toList(), ['bp_sep1', 'bp_sep5', 'bp_sep10', 'bp_sep13', 'bp_sep16', 'bp_sep18']);
+    });
+
+    test('MANDATORY TEST MATRIX: Heart Rate (Sep 1, 5, 10, 13, 16, 18 with ref date Sep 18)', () {
+      final refDate = DateTime(2026, 9, 18, 15, 0);
+
+      final rSep1 = HeartRateReading(id: 'hr_sep1', timestamp: DateTime(2026, 9, 1, 10, 0), bpm: 65.0);
+      final rSep5 = HeartRateReading(id: 'hr_sep5', timestamp: DateTime(2026, 9, 5, 10, 0), bpm: 70.0);
+      final rSep10 = HeartRateReading(id: 'hr_sep10', timestamp: DateTime(2026, 9, 10, 10, 0), bpm: 72.0);
+      final rSep13 = HeartRateReading(id: 'hr_sep13', timestamp: DateTime(2026, 9, 13, 10, 0), bpm: 85.0);
+      final rSep16 = HeartRateReading(id: 'hr_sep16', timestamp: DateTime(2026, 9, 16, 10, 0), bpm: 90.0);
+      final rSep18 = HeartRateReading(id: 'hr_sep18', timestamp: DateTime(2026, 9, 18, 10, 0), bpm: 69.0);
+
+      controller.heartRateHistory.addAll([rSep1, rSep5, rSep10, rSep13, rSep16, rSep18]);
+
+      final weekly = controller.getLastWeekHeartRateReadings(refDate);
+      final monthly = controller.getLastMonthHeartRateReadings(refDate);
+
+      // Weekly: Sep 13, 16, 18 (3 records)
+      expect(weekly.length, 3);
+      expect(weekly.map((r) => r.id).toList(), ['hr_sep13', 'hr_sep16', 'hr_sep18']);
+
+      // Monthly: all 6 records
+      expect(monthly.length, 6);
+      expect(monthly.map((r) => r.id).toList(), ['hr_sep1', 'hr_sep5', 'hr_sep10', 'hr_sep13', 'hr_sep16', 'hr_sep18']);
     });
   });
 }

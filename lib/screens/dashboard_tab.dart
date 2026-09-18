@@ -20,6 +20,7 @@ import '../screens/blood_sugar_screen.dart';
 import '../screens/heart_rate_screen.dart';
 import '../screens/step_detail_screen.dart';
 import '../screens/ai_health_insights_screen.dart';
+import '../screens/health_report_screen.dart';
 
 class DashboardTab extends StatefulWidget {
   const DashboardTab({super.key});
@@ -358,6 +359,40 @@ class _DashboardTabState extends State<DashboardTab> {
                   // Actions: Goals, Reminders & Avatar
                   Row(
                     children: [
+                      // Health PDF Report Button
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const HealthReportScreen(),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(9),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.1),
+                                width: 1,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.picture_as_pdf_rounded,
+                              color: Color(0xFFFF5C7A),
+                              size: 19,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(width: 8),
+
                       // Goals Button
                       Material(
                         color: Colors.transparent,
